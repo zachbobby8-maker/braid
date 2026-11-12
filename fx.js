@@ -172,3 +172,4 @@ export function initFx() {
     if (grid) startCardFx(grid);
   } catch { /* effects are optional */ }
 }
+
