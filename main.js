@@ -1,7 +1,6 @@
 import { CONFIG, isChatConfigured } from './config.js';
 import { watchSVG } from './watch-art.js';
 import { $, t, esc, toast, createOverlay, initI18nFallback, kvGet, kvSet } from './dom.js';
-import { initSell } from './sell.js';
 import { initAdminAuth } from './admin-auth.js';
 import * as backend from './backend.js';
 import { initEditor } from './editor.js';
@@ -463,8 +462,34 @@ function setTab(name) {
   $('tabSell').classList.toggle('is-active', name === 'sell');
 }
 
-const sell = safeInit('sell form', () => initSell({ onClose: () => setTab('vault') }));
-function openSell() { setTab('sell'); sell.open(); }
+// Sell / Trade is loaded only when the visitor asks for it. This keeps the vault,
+// staff login, store-owner form and admin controls alive even if an older deployment
+// has a stale sell.js or one of its old optional imports.
+let sell = null;
+let sellLoad = null;
+async function loadSell() {
+  if (sell) return sell;
+  if (!sellLoad) {
+    sellLoad = import('./sell.js')
+      .then((module) => {
+        sell = safeInit('sell form', () => module.initSell({ onClose: () => setTab('vault') }));
+        return sell;
+      })
+      .catch((err) => {
+        console.error('[braid] sell form could not load', err);
+        toast(t('toast.sellUnavailable'));
+        return null;
+      });
+  }
+  return sellLoad;
+}
+function openSell() {
+  setTab('sell');
+  loadSell().then((feature) => {
+    if (feature?.open) feature.open();
+    else setTab('vault');
+  });
+}
 
 function buildPartnerMessage(t, data, ticket) {
   return formatRows([
