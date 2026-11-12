@@ -1,0 +1,44 @@
+/* Delivery countries, payment choices, order steps and the store-owner band.
+   Uses the colour and spacing tokens from styles.css. */
+
+/* Countries we deliver to */
+.markets { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin-top: var(--s4); }
+.markets__label { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.markets__list { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.markets__list li { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); font-size: 11px; letter-spacing: 0.06em; }
+.markets__list li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+
+/* Payment choices */
+.pay { gap: var(--s3); }
+.pay__grid { display: grid; grid-template-columns: 1fr; gap: var(--s2); }
+@media (min-width: 480px) { .pay__grid { grid-template-columns: 1fr 1fr; } }
+.pay-opt { position: relative; display: block; cursor: pointer; }
+.pay-opt input { position: absolute; opacity: 0; inset: 0; }
+.pay-opt__box { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 64px; height: 100%; padding: var(--s3) var(--s3) var(--s3) 40px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); transition: border-color 0.2s, background 0.2s; }
+.pay-opt__box::before { content: ""; position: absolute; left: var(--s3); top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%; border: 2px solid var(--line-strong); transition: border-color 0.2s; }
+.pay-opt__box strong { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+.pay-opt__box small { font-size: 11px; line-height: 1.4; color: var(--muted); }
+.pay-opt:hover .pay-opt__box { border-color: var(--line-strong); }
+.pay-opt input:checked + .pay-opt__box { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.pay-opt input:checked + .pay-opt__box::before { border-color: var(--gold); background: radial-gradient(circle, var(--gold) 0 4px, transparent 5px); }
+.pay-opt input:focus-visible + .pay-opt__box { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pay__sum { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s3); padding: var(--s3); border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); }
+.pay__label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.pay__sum strong { font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1; color: var(--gold); }
+.pay__local { font-size: 12px; color: var(--muted); }
+
+/* Order steps shown after the message is ready */
+.steps { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) 0; list-style: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.steps li { display: flex; align-items: flex-start; gap: var(--s3); color: var(--muted); }
+.steps__dot { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 11px; font-weight: 600; }
+.steps strong { display: block; font-size: 12px; color: var(--text); }
+.steps small { display: block; font-size: 11px; line-height: 1.45; }
+.steps li.is-done .steps__dot { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.steps li.is-now .steps__dot { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
+
+/* Store-owner band above the footer */
+.partner { border-top: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 10%, var(--surface)), var(--surface)); }
+.partner__inner { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s4); padding-top: var(--s5); padding-bottom: var(--s5); }
+.partner h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(24px, 4vw, 34px); line-height: 1.1; max-width: 26ch; margin: var(--s2) 0; }
+.partner__text { max-width: 56ch; font-size: 12px; color: var(--muted); }
+@media (min-width: 760px) { .partner__inner { flex-direction: row; align-items: center; justify-content: space-between; } }
