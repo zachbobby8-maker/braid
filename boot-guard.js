@@ -114,3 +114,4 @@
   // The app calls ok() once the vault is on screen, or fail(text) when it could not load the watches.
   window.braidBoot = { ok: onReady, fail: showFailure };
 })();
+
