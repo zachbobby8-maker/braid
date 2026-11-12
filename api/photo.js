@@ -54,3 +54,4 @@ module.exports = async (req, res) => {
     return send(res, 500, { ok: false, error: 'server_error' });
   }
 };
+
