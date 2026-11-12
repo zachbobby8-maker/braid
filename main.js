@@ -1,16 +1,15 @@
-import { isChatConfigured } from './config.js';
+import { CONFIG, isChatConfigured } from './config.js';
 import { watchSVG } from './watch-art.js';
 import { $, t, esc, toast, createOverlay, initI18nFallback, kvGet, kvSet } from './dom.js';
-import { fmtDateTime, fmtPrice, ticketCode, buildDossier, chatLinks, copyText } from './merchant.js';
 import { initSell } from './sell.js';
 import { initAdminAuth } from './admin-auth.js';
 import * as backend from './backend.js';
 import { initEditor } from './editor.js';
 import { initAdminPhotos } from './admin-photos.js';
 import { initCheckout } from './checkout.js';
-import { initPartner } from './partner.js';
 import { initInbox, sendCopy } from './inbox.js';
 import { initFx } from './fx.js';
+import { guessCountry } from './markets.js';
 import { withTimeout, safeInit, on, markReady, markFailed } from './boot.js';
 
 const CONDITIONS = ['box', 'unpolished', 'serviced', 'originalDial'];
@@ -23,6 +22,71 @@ const state = {
   watches: [], loaded: false, source: 'sample', buyer: {}, active: null, dossier: '', busy: false, bulk: false, stopBulk: false, confirmClear: false,
   loadError: false,
 };
+
+/* ---------- small handoff helpers kept here so a partial upload cannot stop the vault ---------- */
+export function fmtDateTime(input) {
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return '';
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: CONFIG.timeZone, month: 'short', day: 'numeric', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(d);
+    const get = (type) => parts.find((p) => p.type === type)?.value || '';
+    return `${get('month')} ${get('day')}, ${get('year')} • ${get('hour')}:${get('minute')} ${CONFIG.timeZoneLabel}`;
+  } catch {
+    return d.toUTCString();
+  }
+}
+
+export const fmtPrice = (n) => `₦${Math.round(Number(n) || 0).toLocaleString('en-NG')}`;
+export const ticketCode = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+function formatRows(rows) {
+  const pairs = rows.filter((r) => r.length === 2);
+  const width = Math.max(0, ...pairs.map((r) => r[0].length));
+  return rows.map((r) => (r.length === 2 ? `${r[0].padEnd(width)} : ${r[1]}` : r[0])).join('\n');
+}
+
+const RULE = '────────────────────────';
+
+function buildDossier(t, watch, buyer, ticket) {
+  const amount = buyer.localAmount ? `${fmtPrice(watch.priceNgn)} (≈ ${buyer.localAmount})` : fmtPrice(watch.priceNgn);
+  return formatRows([
+    [t('dossier.heading')], [RULE],
+    [t('dossier.inquiry'), ticket],
+    [t('dossier.piece'), `${watch.brand} ${watch.model} (${watch.year})`],
+    [t('dossier.type'), t(`kind.${watch.kind || 'normal'}`)],
+    [t('dossier.watchId'), watch.id],
+    [t('dossier.ref'), `${watch.ref} · ${watch.caliber}`],
+    [t('dossier.price'), amount],
+    [t('dossier.listed'), fmtDateTime(watch.listedAt)],
+    [t('dossier.status'), t(`status.${watch.status}`)],
+    ...(buyer.payLabel ? [[t('dossier.payment'), buyer.payLabel]] : []), [RULE],
+    [t('dossier.client'), buyer.name], ...(buyer.contact ? [[t('dossier.contact'), buyer.contact]] : []),
+    [t('dossier.country'), buyer.countryLabel], [t('dossier.delivery'), buyer.deliveryLabel],
+    [t('dossier.address'), buyer.location], [t('dossier.note'), buyer.note || t('dossier.defaultNote')],
+  ]);
+}
+
+function chatLinks(text) {
+  const enc = encodeURIComponent(text);
+  return {
+    wa: `https://wa.me/${CONFIG.whatsappNumber || ''}?text=${enc}`,
+    tg: CONFIG.telegramUsername ? `https://t.me/${CONFIG.telegramUsername}` : `https://t.me/share/url?url=%20&text=${enc}`,
+  };
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+  } catch { /* use the legacy path below */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch { return false; }
+}
 
 /* ---------- storage (theme and buyer details stay on this device) ---------- */
 async function load(key, fallback) {
@@ -402,6 +466,84 @@ function setTab(name) {
 const sell = safeInit('sell form', () => initSell({ onClose: () => setTab('vault') }));
 function openSell() { setTab('sell'); sell.open(); }
 
+function buildPartnerMessage(t, data, ticket) {
+  return formatRows([
+    [t('partnermsg.heading')], [RULE], [t('partnermsg.request'), ticket],
+    [t('partnermsg.store'), data.store], [t('partnermsg.owner'), data.owner], [t('partnermsg.where'), data.where],
+    [t('partnermsg.stock'), data.stockLabel], [t('partnermsg.volume'), data.volumeLabel],
+    [t('partnermsg.contact'), data.contact], [t('partnermsg.note'), data.note || t('partnermsg.noNote')],
+  ]);
+}
+
+function initPartner({ onClose } = {}) {
+  const form = $('ptForm');
+  const done = $('ptDone');
+  let message = '';
+  const overlay = createOverlay($('ptBackdrop'), $('ptModal'), { onClose });
+
+  function reset() {
+    message = '';
+    form.reset();
+    $('ptCountry').value = guessCountry();
+    form.hidden = false;
+    done.hidden = true;
+    $('ptInboxNote').hidden = true;
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const ticket = ticketCode('STO');
+    message = buildPartnerMessage(t, {
+      store: $('ptStore').value.trim(), owner: $('ptOwner').value.trim(),
+      where: `${$('ptCity').value.trim()}, ${t(`market.${$('ptCountry').value}`)}`,
+      stockLabel: t(`partner.stockOpt.${$('ptStock').value}`),
+      volumeLabel: t(`partner.volOpt.${$('ptVolume').value}`),
+      contact: $('ptContact').value.trim(), note: $('ptMessage').value.trim(),
+    }, ticket);
+    sendCopy($('ptInboxNote'), {
+      kind: 'partner', ticket, title: $('ptStore').value.trim(), contact: $('ptContact').value.trim(),
+      country: $('ptCountry').value, text: message,
+    });
+    const links = chatLinks(message);
+    $('ptWa').href = links.wa;
+    $('ptTg').href = links.tg;
+    $('ptTicket').textContent = `#${ticket}`;
+    $('ptSummary').textContent = message;
+    form.hidden = true;
+    done.hidden = false;
+    done.scrollIntoView({ block: 'nearest' });
+  });
+  $('ptTg').addEventListener('click', async () => { if (await copyText(message)) toast(t('toast.tgCopied')); });
+  $('ptCopy').addEventListener('click', async () => { toast(t((await copyText(message)) ? 'toast.copied' : 'toast.copyFailed')); });
+  $('ptAnother').addEventListener('click', () => { reset(); $('ptStore').focus(); });
+  $('ptClose').addEventListener('click', () => overlay.close());
+  return { open() { reset(); overlay.open($('ptStore')); }, close: overlay.close, isOpen: overlay.isOpen };
+}
+
+const BRAND_KEYS = [
+  'rolex', 'omega', 'cartier', 'patek', 'audemars', 'vacheron', 'jaeger', 'tudor', 'grandSeiko',
+  'zenith', 'iwc', 'breguet', 'breitling', 'tagHeuer', 'longines', 'universalGeneve', 'kingSeiko', 'moser',
+];
+
+function initBrandBoard() {
+  const list = $('brandBoardList');
+  if (!list) return;
+  list.replaceChildren();
+  BRAND_KEYS.forEach((key, index) => {
+    const item = document.createElement('li');
+    item.className = 'brand-board__item';
+    item.style.setProperty('--brand-delay', `${index * 55}ms`);
+    const mark = document.createElement('span');
+    mark.className = 'brand-board__mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = String(index + 1).padStart(2, '0');
+    const name = document.createElement('span');
+    name.textContent = t(`brands.${key}`);
+    item.append(mark, name);
+    list.append(item);
+  });
+}
+
 const partner = safeInit('store form', initPartner);
 
 /* ---------- wiring ---------- */
@@ -479,6 +621,7 @@ async function boot() {
   applyTheme();
   render();
   initFx();
+  initBrandBoard();
   updateClock();
   setInterval(updateClock, 30000);
 
@@ -521,4 +664,3 @@ boot().catch((err) => {
   console.error('[braid] start-up failed', err);
   markFailed((err && err.message) || String(err));
 });
-
