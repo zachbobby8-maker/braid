@@ -11,6 +11,7 @@ import { initCheckout } from './checkout.js';
 import { initPartner } from './partner.js';
 import { initInbox, sendCopy } from './inbox.js';
 import { initFx } from './fx.js';
+import { withTimeout, safeInit, on, markReady, markFailed } from './boot.js';
 
 const CONDITIONS = ['box', 'unpolished', 'serviced', 'originalDial'];
 const STATUS_ORDER = ['available', 'hold', 'sold'];
@@ -20,6 +21,7 @@ const CLOCK_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" 
 const state = {
   cat: 'all', kind: 'all', query: '', availableOnly: false, admin: false, theme: 'vault',
   watches: [], loaded: false, source: 'sample', buyer: {}, active: null, dossier: '', busy: false, bulk: false, stopBulk: false, confirmClear: false,
+  loadError: false,
 };
 
 /* ---------- storage (theme and buyer details stay on this device) ---------- */
@@ -108,11 +110,14 @@ function render() {
   const all = allWatches();
   const list = visibleWatches();
   const grid = $('grid');
-  grid.innerHTML = list.map(cardHTML).join('');
+  $('loadingState').hidden = state.loaded;
+  // One damaged listing must never stop the rest of the vault from showing.
+  grid.innerHTML = list.map((w) => {
+    try { return cardHTML(w); } catch (err) { console.error('[braid] skipped a watch that could not be drawn', w && w.id, err); return ''; }
+  }).join('');
   bindFallbacks(grid);
   grid.hidden = list.length === 0;
-  $('loadingState').hidden = state.loaded;
-  $('emptyVault').hidden = !state.loaded || all.length > 0;
+  $('emptyVault').hidden = !state.loaded || all.length > 0 || state.loadError;
   $('emptyAdd').hidden = !state.admin;
   $('emptyState').hidden = !state.loaded || list.length > 0 || all.length === 0;
   $('resultCount').textContent = t('results.count', { shown: list.length, total: all.length });
@@ -161,7 +166,7 @@ async function setStatusFromDrawer(value) {
 
 /* ---------- inspection drawer ---------- */
 const drawer = createOverlay($('drawerBackdrop'), $('drawer'), { onClose: () => { state.active = null; } });
-const checkout = initCheckout();
+const checkout = safeInit('checkout', initCheckout);
 
 function fillDrawer(w) {
   const pill = $('drawerStatus');
@@ -286,7 +291,7 @@ async function setImages(map) {
 }
 
 /* ---------- admin photo tools (upload, link, AI) live in admin-photos.js ---------- */
-const photos = initAdminPhotos({
+const photos = safeInit('photos', () => initAdminPhotos({
   state,
   findWatch,
   allWatches,
@@ -295,7 +300,7 @@ const photos = initAdminPhotos({
   render,
   refreshActive,
   onAuthLost: () => { toast(t('toast.sessionEnded')); auth.signOut(); },
-});
+}));
 
 /* ---------- add, edit and remove watches (admin) ---------- */
 let editReturn = '';
@@ -315,12 +320,12 @@ async function removeWatch(id) {
   await persist();
 }
 
-const editor = initEditor({
+const editor = safeInit('editor', () => initEditor({
   onSave: saveWatch,
   onDelete: removeWatch,
   onAuthLost: () => { toast(t('toast.sessionEnded')); auth.signOut(); },
   onClose: () => { const id = editReturn; editReturn = ''; if (id) openDrawer(id); },
-});
+}));
 
 function openEditor(id) {
   const w = id && findWatch(id);
@@ -384,8 +389,8 @@ function toggleAdmin(force) {
   refreshActive();
 }
 
-const auth = initAdminAuth({ onChange: (on) => toggleAdmin(on) });
-const inbox = initInbox({ onAuthLost: () => { toast(t('toast.sessionEnded')); auth.signOut(); } });
+const auth = safeInit('admin sign-in', () => initAdminAuth({ onChange: (isOn) => toggleAdmin(isOn) }));
+const inbox = safeInit('inbox', () => initInbox({ onAuthLost: () => { toast(t('toast.sessionEnded')); auth.signOut(); } }));
 
 const updateClock = () => { $('liveClock').textContent = fmtDateTime(new Date()); };
 
@@ -394,65 +399,65 @@ function setTab(name) {
   $('tabSell').classList.toggle('is-active', name === 'sell');
 }
 
-const sell = initSell({ onClose: () => setTab('vault') });
+const sell = safeInit('sell form', () => initSell({ onClose: () => setTab('vault') }));
 function openSell() { setTab('sell'); sell.open(); }
 
-const partner = initPartner();
+const partner = safeInit('store form', initPartner);
 
 /* ---------- wiring ---------- */
 function wire() {
-  $('grid').addEventListener('click', (e) => {
+  on('grid', 'click', (e) => {
     const cycle = e.target.closest('[data-cycle]');
     if (cycle) { cycleStatus(cycle.dataset.cycle); return; }
     const open = e.target.closest('[data-open]');
     if (open) openDrawer(open.dataset.open);
   });
 
-  $('categoryFilters').addEventListener('click', (e) => {
+  on('categoryFilters', 'click', (e) => {
     const chip = e.target.closest('[data-cat]');
     if (!chip) return;
     state.cat = chip.dataset.cat;
     syncChips();
     render();
   });
-  $('searchInput').addEventListener('input', (e) => { state.query = e.target.value; render(); });
-  $('kindFilter').addEventListener('change', (e) => { state.kind = e.target.value; render(); });
-  $('availableOnly').addEventListener('change', (e) => { state.availableOnly = e.target.checked; render(); });
-  $('resetFilters').addEventListener('click', resetFilters);
-  $('brandLink').addEventListener('click', () => { resetFilters(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  on('searchInput', 'input', (e) => { state.query = e.target.value; render(); });
+  on('kindFilter', 'change', (e) => { state.kind = e.target.value; render(); });
+  on('availableOnly', 'change', (e) => { state.availableOnly = e.target.checked; render(); });
+  on('resetFilters', 'click', resetFilters);
+  on('brandLink', 'click', () => { resetFilters(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
 
-  $('tabVault').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-  $('tabSell').addEventListener('click', openSell);
-  $('footerSell').addEventListener('click', openSell);
-  $('partnerOpen').addEventListener('click', () => partner.open());
-  $('footerPartner').addEventListener('click', () => partner.open());
+  on('tabVault', 'click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  on('tabSell', 'click', openSell);
+  on('footerSell', 'click', openSell);
+  on('partnerOpen', 'click', () => partner.open());
+  on('footerPartner', 'click', () => partner.open());
 
-  $('themeBtn').addEventListener('click', () => {
+  on('themeBtn', 'click', () => {
     state.theme = state.theme === 'vault' ? 'archive' : 'vault';
     applyTheme();
     save(KEYS.theme, state.theme);
   });
-  $('adminToggle').addEventListener('click', () => auth.open());
-  $('adminExit').addEventListener('click', () => { auth.signOut(); toast(t('login.signedOut')); });
-  $('addWatchBtn').addEventListener('click', () => editor.openNew());
-  $('emptyAdd').addEventListener('click', () => editor.openNew());
-  $('clearSamplesBtn').addEventListener('click', clearSamples);
-  $('editBtn').addEventListener('click', () => openEditor(state.active));
-  $('quickStatus').addEventListener('change', (e) => {
+  on('adminToggle', 'click', () => auth.open());
+  on('adminExit', 'click', () => { auth.signOut(); toast(t('login.signedOut')); });
+  on('addWatchBtn', 'click', () => editor.openNew());
+  on('emptyAdd', 'click', () => editor.openNew());
+  on('clearSamplesBtn', 'click', clearSamples);
+  on('editBtn', 'click', () => openEditor(state.active));
+  on('quickStatus', 'change', (e) => {
     if (e.target.matches('input[name="quickStatus"]')) setStatusFromDrawer(e.target.value);
   });
 
-  $('drawerClose').addEventListener('click', () => drawer.close());
-  $('handoffForm').addEventListener('submit', onHandoff);
-  $('handoffEdit').addEventListener('click', () => {
+  on('drawerClose', 'click', () => drawer.close());
+  on('handoffForm', 'submit', onHandoff);
+  on('handoffEdit', 'click', () => {
     $('handoffResult').hidden = true;
     $('handoffForm').hidden = false;
     $('buyerName').focus();
   });
-  $('tgLink').addEventListener('click', async () => {
+  on('tgLink', 'click', async () => {
     if (await copyText(state.dossier)) toast(t('toast.tgCopied'));
   });
-  $('copyDossier').addEventListener('click', async () => {
+  on('copyDossier', 'click', async () => {
     toast(t((await copyText(state.dossier)) ? 'toast.copied' : 'toast.copyFailed'));
   });
 
@@ -469,7 +474,7 @@ async function pollRemote() {
 }
 
 async function boot() {
-  await initI18nFallback();
+  await withTimeout(initI18nFallback(), 5000);
   wire();
   applyTheme();
   render();
@@ -477,24 +482,42 @@ async function boot() {
   updateClock();
   setInterval(updateClock, 30000);
 
-  await backend.initBackend();
+  await withTimeout(backend.initBackend(), 8000);
+
+  // Show the last watches this browser saw straight away, then refresh from the live database.
+  const cached = backend.hasDatabase() ? await withTimeout(backend.readCache(), 3000, null) : null;
+  if (cached && cached.length) {
+    state.watches = cached;
+    state.loaded = true;
+    render();
+    markReady();
+  }
+
   const [theme, buyer, catalog] = await Promise.all([
-    load(KEYS.theme, 'vault'), load(KEYS.buyer, {}), backend.loadCatalog(),
+    withTimeout(load(KEYS.theme, 'vault'), 4000, 'vault'),
+    withTimeout(load(KEYS.buyer, {}), 4000, {}),
+    withTimeout(backend.loadCatalog(), 20000, { list: [], source: 'error' }),
   ]);
   state.buyer = buyer && typeof buyer === 'object' ? buyer : {};
   state.theme = theme === 'archive' ? 'archive' : 'vault';
-  state.watches = catalog.list;
+  if (catalog.source !== 'error' || !state.watches.length) state.watches = catalog.list;
   state.source = catalog.source;
+  state.loadError = catalog.source === 'error' && !state.watches.length;
   state.loaded = true;
   applyTheme();
   render();
+  if (state.loadError) markFailed(t('vault.loadError'));
+  else markReady();
   if (catalog.source === 'error') toast(t('toast.loadFailed'));
 
-  if (await auth.restore()) toggleAdmin(true);
+  if (await withTimeout(auth.restore(), 10000, false)) toggleAdmin(true);
   else if (location.hash === '#admin') auth.open();
 
   setInterval(pollRemote, 45000);
   document.addEventListener('visibilitychange', pollRemote);
 }
 
-boot();
+boot().catch((err) => {
+  console.error('[braid] start-up failed', err);
+  markFailed((err && err.message) || String(err));
+});
