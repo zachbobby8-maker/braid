@@ -3,7 +3,6 @@
   "login": {
     "eyebrow": "Staff only",
     "title": "Admin sign-in",
-    "intro": "Sign in to change watch photos, prices and availability. Buyers never see these tools.",
     "pass": "Admin passcode",
     "remember": "Keep me signed in on this device",
     "submit": "Sign in",
