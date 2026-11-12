@@ -102,10 +102,16 @@ async function localOrSample() {
 }
 
 /* ---------- loading & saving ---------- */
+// The last live catalogue this browser saw, so the vault can open instantly while the fresh copy loads.
+export async function readCache() {
+  const cached = await kvGet(KEYS.cache);
+  return Array.isArray(cached) ? cached.map(normalizeWatch) : null;
+}
+
 export async function loadCatalog() {
   if (!hasDatabase()) return localOrSample();
   try {
-    const r = await call('/api/catalog');
+    const r = await call('/api/catalog', { timeoutMs: 12000 });
     if (r.ok && r.data && r.data.ok) {
       const saved = Array.isArray(r.data.watches);
       const list = saved ? r.data.watches.map(normalizeWatch) : sampleCatalog();
