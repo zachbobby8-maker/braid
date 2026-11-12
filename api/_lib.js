@@ -33,14 +33,22 @@ function dbReady() {
 async function db(command) {
   const { url, token } = dbCreds();
   if (!url || !token) throw Object.assign(new Error('db_not_configured'), { code: 'db_not_configured' });
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(command),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.error) throw new Error(data.error || `db_http_${res.status}`);
-  return data.result;
+  // Give up after 8 seconds so the site gets a quick, clear error instead of waiting for Vercel to cut the request off.
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(command),
+      signal: ctl.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) throw new Error(data.error || `db_http_${res.status}`);
+    return data.result;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /* ---------- responses & request helpers ---------- */
