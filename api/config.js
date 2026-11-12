@@ -18,3 +18,4 @@ module.exports = (req, res) => {
     { 'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=60' },
   );
 };
+
