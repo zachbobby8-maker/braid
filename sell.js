@@ -1,11 +1,41 @@
 // "Sell / Trade Your Watch" flow: details + up to 3 photos -> ready-to-send merchant message.
 import { $, t, esc, toast, createOverlay, labelAsButton } from './dom.js';
-import { buildSellMessage, chatLinks, copyText, ticketCode } from './merchant.js';
+import { CONFIG } from './config.js';
 import { uploadPhotos } from './ai-photos.js';
 import { sendCopy } from './inbox.js';
 
 const MAX_PHOTOS = 3;
 const MAX_BYTES = 15 * 1024 * 1024;
+
+const ticketCode = (prefix) => `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+const formatRows = (rows) => {
+  const pairs = rows.filter((r) => r.length === 2);
+  const width = Math.max(0, ...pairs.map((r) => r[0].length));
+  return rows.map((r) => (r.length === 2 ? `${r[0].padEnd(width)} : ${r[1]}` : r[0])).join('\n');
+};
+const buildSellMessage = (t, data, ticket) => formatRows([
+  [t('sellmsg.heading')], ['────────────────────────'], [t('sellmsg.request'), ticket],
+  [t('sellmsg.piece'), data.model], [t('sellmsg.ref'), data.ref], [t('sellmsg.condition'), data.conditionLabel],
+  [t('sellmsg.wants'), data.intentLabel], [t('sellmsg.asking'), data.price], [t('sellmsg.contact'), data.contact],
+  [t('sellmsg.photos'), data.photoUrls.length ? data.photoUrls.join('\n  ') : t('sellmsg.noPhotos')],
+]);
+const chatLinks = (text) => {
+  const enc = encodeURIComponent(text);
+  return {
+    wa: `https://wa.me/${CONFIG.whatsappNumber || ''}?text=${enc}`,
+    tg: CONFIG.telegramUsername ? `https://t.me/${CONFIG.telegramUsername}` : `https://t.me/share/url?url=%20&text=${enc}`,
+  };
+};
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+  } catch { /* use the legacy path below */ }
+  try {
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0'; document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch { return false; }
+}
 
 export function initSell({ onClose } = {}) {
   const form = $('sellForm');
@@ -130,4 +160,3 @@ export function initSell({ onClose } = {}) {
     isOpen: overlay.isOpen,
   };
 }
-
