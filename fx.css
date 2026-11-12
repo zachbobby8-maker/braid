@@ -120,6 +120,23 @@
 .ticker__track li { display: flex; align-items: center; gap: var(--s5); margin-right: var(--s5); padding: var(--s3) 0; font-family: var(--font-display); font-size: 20px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .ticker__track li::after { content: ""; width: 6px; height: 6px; transform: rotate(45deg); background: var(--gold); opacity: 0.7; }
 
+/* ---------- Watch-house board ---------- */
+.brand-board { border-block: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 7%, var(--bg)), var(--surface)); }
+.brand-board__inner { padding-top: var(--s6); padding-bottom: var(--s6); }
+.brand-board__head { display: grid; gap: var(--s3); margin-bottom: var(--s5); }
+.brand-board__head h2 { max-width: 620px; font-family: var(--font-display); font-size: clamp(30px, 5vw, 44px); font-weight: 600; line-height: 0.98; }
+.brand-board__text { max-width: 430px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.brand-board__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
+.brand-board__item { display: flex; align-items: center; gap: var(--s3); min-height: 54px; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 78%, transparent); color: var(--text); font-family: var(--font-display); font-size: 18px; line-height: 1; transition: border-color 0.25s, transform 0.25s, background 0.25s; animation: brand-board-in 0.65s var(--fx-ease) var(--brand-delay) backwards; }
+.brand-board__item:hover { border-color: color-mix(in srgb, var(--gold) 58%, var(--line)); background: color-mix(in srgb, var(--gold) 10%, var(--surface)); transform: translateY(-2px); }
+.brand-board__mark { flex: none; color: var(--gold); font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.12em; }
+@keyframes brand-board-in { from { opacity: 0; transform: translateY(12px); } }
+@media (min-width: 560px) {
+  .brand-board__head { grid-template-columns: minmax(0, 1fr) minmax(220px, 0.65fr); align-items: end; }
+  .brand-board__list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 900px) { .brand-board__list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
 /* ---------- Cards ---------- */
 .card { --rx: 0deg; --ry: 0deg; transition: transform 0.3s var(--fx-ease), border-color 0.3s, box-shadow 0.4s; }
 .card.fx-wait { opacity: 0; transform: translateY(32px) scale(0.96); }
@@ -212,4 +229,3 @@
 @media (prefers-reduced-motion: reduce) {
   .card.fx-wait { opacity: 1; transform: none; }
 }
-
