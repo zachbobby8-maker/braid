@@ -413,7 +413,8 @@
     "tgCopied": "Message copied. Paste it into the Telegram chat.",
     "copied": "Message copied.",
     "copyFailed": "Couldn’t copy. Select the text and copy it manually.",
-    "urlCopied": "Image URL copied."
+    "urlCopied": "Image URL copied.",
+    "sellUnavailable": "Sell / Trade is unavailable on this deployment. Please redeploy the latest files."
   },
   "dossier": {
     "heading": "BRAID WATCHES // ORDER REQUEST",
