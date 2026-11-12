@@ -28,4 +28,3 @@ export function on(id, type, handler) {
 
 export const markReady = () => window.braidBoot?.ok?.();
 export const markFailed = (detail) => window.braidBoot?.fail?.(detail);
-
