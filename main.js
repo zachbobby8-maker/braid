@@ -521,3 +521,4 @@ boot().catch((err) => {
   console.error('[braid] start-up failed', err);
   markFailed((err && err.message) || String(err));
 });
+
