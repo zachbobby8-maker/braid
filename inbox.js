@@ -1,818 +1,257 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="vault">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Braid Watches — Private Horological Vault</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="checkout.css">
-  <link rel="stylesheet" href="fx.css">
-  <link rel="stylesheet" href="avail.css">
-  <link rel="stylesheet" href="inbox.css">
-</head>
-<body>
-  <div class="ambient" aria-hidden="true">
-    <span class="ambient__grid"></span>
-    <span class="ambient__blob ambient__blob--a"></span>
-    <span class="ambient__blob ambient__blob--b"></span>
-    <span class="ambient__spot"></span>
-  </div>
-  <div class="progress" aria-hidden="true"><span></span></div>
-  <a class="skip" href="#grid" data-i18n="a11y.skip">Skip to watches</a>
+// Merchant inbox (admin only): every order, valuation request and store message the site received.
+// Also exports sendCopy(), which the buyer forms call to leave a copy on the merchant's desk.
+import { $, t, esc, toast, createOverlay } from './dom.js';
+import * as backend from './backend.js';
+import { copyText, fmtDateTime } from './merchant.js';
 
-  <!-- Telemetry strip -->
-  <div class="strip">
-    <div class="wrap strip__inner">
-      <span class="strip__live"><span class="pulse" aria-hidden="true"></span><span data-i18n="strip.online">Vault online</span></span>
-      <span class="strip__desk" data-i18n="strip.desk">Lagos private desk · Nigeria · Ghana · Kenya · South Africa</span>
-      <time id="liveClock" class="strip__clock"></time>
-    </div>
-  </div>
+const KINDS = ['order', 'sell', 'partner'];
+const DIAL = { NG: '234', ZA: '27', KE: '254', GH: '233' };
+const POLL_MS = 60000;
+const OPEN_FIRST = 5;
+const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/;
+const HANDLE = /(?:^|[\s,;])@([A-Za-z][A-Za-z0-9_]{3,31})\b/;
 
-  <header class="top">
-    <div class="wrap top__inner">
-      <button type="button" class="brand" id="brandLink">
-        <span class="brand__mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" stroke-dasharray="2 2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/><path d="M12 12l3.5-3.5M12 12v4" stroke-linecap="round"/></svg>
-        </span>
-        <span class="brand__text">
-          <span class="brand__name">BRAID WATCHES</span>
-          <span class="brand__sub" data-i18n="brand.sub">Curated mechanical &amp; vintage horology</span>
-        </span>
-      </button>
+// Buyer side: saves a copy of the message on the merchant's desk and tells the buyer.
+export async function sendCopy(noteEl, entry) {
+  if (!backend.hasDatabase()) { noteEl.hidden = true; return false; }
+  noteEl.dataset.ticket = entry.ticket;
+  noteEl.hidden = false;
+  noteEl.classList.remove('is-ok', 'is-warn');
+  noteEl.textContent = t('inbox.sending');
+  const res = await backend.sendInbox(entry);
+  if (noteEl.dataset.ticket !== entry.ticket) return res.saved;
+  noteEl.classList.toggle('is-ok', res.saved);
+  noteEl.classList.toggle('is-warn', !res.saved);
+  noteEl.textContent = t(res.saved ? 'inbox.sent' : 'inbox.sendFailed');
+  return res.saved;
+}
 
-      <nav class="tabs" data-i18n-aria-label="nav.label" aria-label="Sections">
-        <button type="button" class="tab is-active" id="tabVault" data-i18n="nav.vault">The Vault</button>
-        <button type="button" class="tab" id="tabSell" data-i18n="nav.sell">Sell / Trade Your Watch</button>
-      </nav>
+// Works out how the merchant can answer: WhatsApp for phone numbers, Telegram for @handles, email for addresses.
+function replyLinks(contact, country) {
+  const raw = String(contact || '').trim();
+  const links = [];
+  const mail = raw.match(EMAIL);
+  const handle = raw.match(HANDLE);
+  const rest = raw.replace(EMAIL, ' ').replace(/@\w+/g, ' ');
+  let digits = rest.replace(/\D/g, '');
+  if (digits.length >= 8 && digits.length <= 15) {
+    if (/^\s*0/.test(rest) && DIAL[country]) digits = DIAL[country] + digits.slice(1);
+    links.push({ type: 'wa', href: `https://wa.me/${digits}` });
+  }
+  if (handle) links.push({ type: 'tg', href: `https://t.me/${handle[1]}` });
+  if (mail) links.push({ type: 'mail', href: `mailto:${mail[0]}` });
+  return links;
+}
 
-      <button type="button" class="btn btn--ghost btn--sm" id="themeBtn" aria-pressed="false"><span id="themeLabel"></span></button>
-    </div>
+const linkify = (text) => esc(text).replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
 
-    <div class="filters">
-      <div class="wrap filters__inner">
-        <div class="chips" id="categoryFilters" role="group" data-i18n-aria-label="filters.label" aria-label="Collections">
-          <button type="button" class="chip is-active" data-cat="all" data-i18n="filters.all">All pieces</button>
-          <button type="button" class="chip" data-cat="daily" data-i18n="filters.daily">Daily drivers</button>
-          <button type="button" class="chip" data-cat="collector" data-i18n="filters.collector">Collector staples</button>
-          <button type="button" class="chip" data-cat="vault" data-i18n="filters.vault">Vault anchors</button>
-          <button type="button" class="chip" data-cat="neo" data-i18n="filters.neo">Neo-vintage</button>
-          <button type="button" class="chip" data-cat="other" data-i18n="filters.other">Other watches</button>
-        </div>
-        <div class="filters__right">
-          <label class="search">
-            <span class="sr-only" data-i18n="search.label">Search watches</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input type="search" id="searchInput" autocomplete="off" data-i18n-placeholder="search.placeholder" placeholder="Search ref, caliber, brand…">
-          </label>
-          <label class="select-filter">
-            <span class="sr-only" data-i18n="kind.filterLabel">Watch type</span>
-            <select id="kindFilter">
-              <option value="all" data-i18n="kind.all">All types</option>
-              <option value="normal" data-i18n="kind.normal">Normal watch</option>
-              <option value="classic" data-i18n="kind.classic">Classic</option>
-              <option value="vintage" data-i18n="kind.vintage">Vintage</option>
-            </select>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="availableOnly">
-            <span class="switch__track" aria-hidden="true"></span>
-            <span data-i18n="filter.availableOnly">Available only</span>
-          </label>
-        </div>
-      </div>
-    </div>
-  </header>
+const CLOSE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
 
-  <section class="hero">
-    <div class="wrap hero__inner">
-      <div class="hero__copy">
-        <p class="eyebrow" data-i18n="hero.eyebrow">Authenticated private vault · Direct-to-merchant payment</p>
-        <h1 data-i18n="hero.title">Inspect live availability, verify listing timestamps, and pay our merchant directly — by transfer, card, mobile money or crypto.</h1>
-        <div class="markets">
-          <span class="markets__label" id="marketsLabel" data-i18n="market.title">We deliver to</span>
-          <ul class="markets__list" aria-labelledby="marketsLabel">
-            <li data-i18n="market.NG">Nigeria</li>
-            <li data-i18n="market.ZA">South Africa</li>
-            <li data-i18n="market.KE">Kenya</li>
-            <li data-i18n="market.GH">Ghana</li>
-          </ul>
-        </div>
-      </div>
-      <div class="hero__visual" aria-hidden="true">
-        <svg class="hero-watch" viewBox="0 0 400 400" focusable="false">
-          <defs>
-            <radialGradient id="hwGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0" stop-color="#d4af37" stop-opacity=".42"/>
-              <stop offset=".6" stop-color="#d4af37" stop-opacity=".08"/>
-              <stop offset="1" stop-color="#d4af37" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="hwCase" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#fbeeb0"/><stop offset=".3" stop-color="#d4af37"/><stop offset=".62" stop-color="#7d5f12"/><stop offset="1" stop-color="#e9cf7a"/>
-            </linearGradient>
-            <linearGradient id="hwBezel" x1="1" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#34343a"/><stop offset=".5" stop-color="#0d0d10"/><stop offset="1" stop-color="#2a2a30"/>
-            </linearGradient>
-            <radialGradient id="hwDial" cx="50%" cy="36%" r="72%">
-              <stop offset="0" stop-color="#1f5444"/><stop offset=".62" stop-color="#0b1c16"/><stop offset="1" stop-color="#040807"/>
-            </radialGradient>
-            <linearGradient id="hwStrap" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#0c0c0e"/><stop offset=".5" stop-color="#2a2a30"/><stop offset="1" stop-color="#0c0c0e"/>
-            </linearGradient>
-            <linearGradient id="hwSweep" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".32"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
-            </linearGradient>
-            <clipPath id="hwClip"><circle cx="200" cy="200" r="112"/></clipPath>
-            <filter id="hwLume" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="2.2" result="b"/>
-              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-
-          <circle class="hw-breathe" cx="200" cy="200" r="200" fill="url(#hwGlow)"/>
-          <g class="hw-orbit hw-orbit--a">
-            <circle cx="200" cy="200" r="190" fill="none" stroke="#d4af37" stroke-opacity=".3" stroke-dasharray="1 8"/>
-            <circle cx="200" cy="10" r="3.5" fill="#d4af37"/>
-          </g>
-          <g class="hw-orbit hw-orbit--b">
-            <circle cx="200" cy="200" r="178" fill="none" stroke="#34d399" stroke-opacity=".25" stroke-dasharray="14 10"/>
-            <circle cx="378" cy="200" r="3" fill="#34d399"/>
-          </g>
-
-          <rect x="152" y="22" width="96" height="100" rx="12" fill="url(#hwStrap)" stroke="#3f3f46"/>
-          <rect x="152" y="278" width="96" height="100" rx="12" fill="url(#hwStrap)" stroke="#3f3f46"/>
-          <path d="M163 30V112M237 30V112M163 288V370M237 288V370" fill="none" stroke="#d4af37" stroke-opacity=".4" stroke-dasharray="3 4"/>
-
-          <rect x="332" y="184" width="22" height="32" rx="4" fill="url(#hwCase)" stroke="#7d5f12"/>
-          <path d="M338 187V213M344 187V213M350 187V213" stroke="#3b2d08" stroke-opacity=".5"/>
-          <path d="M140 94 156 56H244L260 94Z" fill="url(#hwCase)" stroke="#7d5f12"/>
-          <path d="M140 306 156 344H244L260 306Z" fill="url(#hwCase)" stroke="#7d5f12"/>
-          <circle cx="200" cy="200" r="140" fill="url(#hwCase)" stroke="#7d5f12" stroke-width="2"/>
-          <circle cx="200" cy="200" r="134" fill="none" stroke="#fff" stroke-opacity=".38"/>
-
-          <circle cx="200" cy="200" r="126" fill="url(#hwBezel)" stroke="#d4af37" stroke-opacity=".6"/>
-          <circle cx="200" cy="200" r="119" fill="none" stroke="#d4af37" stroke-opacity=".75" stroke-width="8" stroke-dasharray="1.4 11.06" stroke-dashoffset=".7" transform="rotate(-90 200 200)"/>
-          <path d="M200 77 194 87H206Z" fill="#34d399" filter="url(#hwLume)"/>
-
-          <circle cx="200" cy="200" r="112" fill="url(#hwDial)"/>
-          <circle cx="200" cy="200" r="56" fill="none" stroke="#fff" stroke-opacity=".05" stroke-width="112" stroke-dasharray="3 6.774"/>
-          <circle cx="200" cy="200" r="108" fill="none" stroke="#d4af37" stroke-opacity=".3"/>
-          <circle cx="200" cy="200" r="103" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="3" stroke-dasharray="1 9.79" stroke-dashoffset=".5" transform="rotate(-90 200 200)"/>
-          <g filter="url(#hwLume)" transform="rotate(-90 200 200)">
-            <circle cx="200" cy="200" r="90" fill="none" stroke="#d9ffe9" stroke-width="12" stroke-dasharray="4.4 42.72" stroke-dashoffset="2.2"/>
-            <circle cx="200" cy="200" r="90" fill="none" stroke="#d9ffe9" stroke-width="18" stroke-dasharray="7 134.37" stroke-dashoffset="3.5"/>
-          </g>
-          <text x="200" y="152" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="24" font-weight="600" letter-spacing="6" fill="#e9cf7a">BRAID</text>
-          <text x="200" y="168" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" letter-spacing="3.5" fill="#a1a1aa">WATCHES</text>
-          <rect x="250" y="190" width="26" height="20" rx="2" fill="#f4f4f5" stroke="#d4af37"/>
-          <text id="hwDate" x="263" y="205" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#18181b">12</text>
-
-          <path d="M104 160C112 120 150 92 196 90C150 110 122 134 104 160Z" fill="#fff" fill-opacity=".09"/>
-
-          <g id="hwHour">
-            <path d="M200 214 193 205 196 142 200 126 204 142 207 205Z" fill="#e9cf7a" stroke="#7d5f12" stroke-width=".8"/>
-            <path d="M200 192V148" stroke="#d9ffe9" stroke-width="2" stroke-linecap="round"/>
-          </g>
-          <g id="hwMin">
-            <path d="M200 220 194.5 208 197 120 200 96 203 120 205.5 208Z" fill="#e9cf7a" stroke="#7d5f12" stroke-width=".8"/>
-            <path d="M200 200V120" stroke="#d9ffe9" stroke-width="2" stroke-linecap="round"/>
-          </g>
-          <g id="hwSec">
-            <line x1="200" y1="238" x2="200" y2="92" stroke="#34d399" stroke-width="1.6" stroke-linecap="round"/>
-            <circle cx="200" cy="228" r="5" fill="none" stroke="#34d399" stroke-width="1.6"/>
-            <circle cx="200" cy="140" r="3.2" fill="#d9ffe9"/>
-          </g>
-          <circle cx="200" cy="200" r="7" fill="#d4af37" stroke="#18181b"/>
-          <circle cx="200" cy="200" r="2.5" fill="#18181b"/>
-
-          <g clip-path="url(#hwClip)"><g class="hw-glint"><rect x="60" y="80" width="46" height="240" fill="url(#hwSweep)" transform="skewX(-22)"/></g></g>
-        </svg>
-        <span class="float-tag float-tag--a"><span class="pulse"></span><span data-i18n="fx.tagAuth">Authenticated</span></span>
-        <span class="float-tag float-tag--b"><span class="pulse"></span><span data-i18n="fx.tagCourier">Insured delivery</span></span>
-        <span class="float-tag float-tag--c"><span class="pulse"></span><span data-i18n="fx.tagLive">Live availability</span></span>
-      </div>
-      <dl class="hero__stats">
-        <div><dt data-i18n="hero.s1k">Verification</dt><dd data-i18n="hero.s1v">Timegrapher tested</dd></div>
-        <div><dt data-i18n="hero.s2k">Payment</dt><dd class="gold" data-i18n="hero.s2v">Card · Transfer · Mobile money</dd></div>
-        <div><dt data-i18n="hero.s3k">Fulfilment</dt><dd data-i18n="hero.s3v">Same-day Lagos · Insured courier</dd></div>
-      </dl>
-    </div>
-  </section>
-
-  <div class="ticker" aria-hidden="true">
-    <ul class="ticker__track" id="tickerTrack">
-      <li>Rolex</li><li>Omega</li><li>Cartier</li><li>Patek Philippe</li><li>Tudor</li><li>Heuer</li><li>Seiko</li><li>Longines</li><li>Universal Genève</li><li>King Seiko</li><li>Ikepod</li><li>Alain Silberstein</li>
-    </ul>
-  </div>
-
-  <main class="wrap main">
-    <div class="admin-banner" id="adminBanner" hidden>
-      <span class="admin-banner__badge" data-i18n="admin.badge">Vault admin</span>
-      <span class="admin-banner__text" data-i18n="admin.text">You are signed in. Tap a status pill to change availability, or open a watch to edit it and change its photo.</span>
-      <span class="admin-banner__text admin-banner__db" id="adminDb"></span>
-      <span class="admin-banner__text" id="adminWarn" hidden data-i18n="admin.warn">Merchant chat is not connected yet. Add WHATSAPP_NUMBER and TELEGRAM_USERNAME in your Vercel settings.</span>
-      <div class="admin-banner__actions">
-        <button type="button" class="btn btn--primary btn--sm" id="inboxBtn"><span data-i18n="admin.messages">Messages</span><span class="count-badge" id="inboxCount" hidden></span></button>
-        <button type="button" class="btn btn--primary btn--sm" id="addWatchBtn" data-i18n="admin.add">Add a watch</button>
-        <button type="button" class="btn btn--outline btn--sm" id="genAllBtn"><span id="genAllLabel"></span></button>
-        <button type="button" class="btn btn--outline btn--sm" id="copyLinksBtn" hidden data-i18n="admin.copyLinks">Copy photo links</button>
-        <button type="button" class="btn btn--outline btn--sm" id="pasteLinksBtn" hidden data-i18n="admin.pasteLinks">Paste photo links</button>
-        <button type="button" class="btn btn--ghost btn--sm" id="clearSamplesBtn" hidden><span id="clearSamplesLabel"></span></button>
-      </div>
-      <p class="mono-note admin-banner__status" id="genAllStatus" role="status"></p>
-      <div class="links-box" id="linksBox" hidden>
-        <label class="field">
-          <span data-i18n="admin.linksLabel">Paste the photo links here</span>
-          <textarea id="linksText" rows="3" spellcheck="false"></textarea>
-        </label>
-        <div class="admin-banner__actions">
-          <button type="button" class="btn btn--primary btn--sm" id="linksApply" data-i18n="admin.linksApply">Apply photos</button>
-          <button type="button" class="btn btn--ghost btn--sm" id="linksCancel" data-i18n="editor.cancel">Cancel</button>
-        </div>
-      </div>
-      <button type="button" class="link-btn" id="adminExit" data-i18n="admin.exit">Exit admin preview</button>
-    </div>
-
-    <div class="results-bar">
-      <p id="resultCount" class="mono-note"></p>
-      <p id="availableCount" class="mono-note mono-note--ok"></p>
-    </div>
-
-    <div class="grid" id="grid" aria-live="polite"></div>
-
-    <div class="empty" id="loadingState" role="status">
-      <p class="empty__title" data-i18n="vault.loading">Opening the vault…</p>
-    </div>
-
-    <div class="empty" id="bootFail" role="alert" hidden>
-      <p class="empty__title" data-i18n="boot.title">The vault didn’t open.</p>
-      <p class="empty__text" data-i18n="boot.text">Something didn’t load. Reload the page to try again. If it keeps happening, the note below names the file that is missing from your site. Upload it and redeploy.</p>
-      <p class="mono-note"><span data-i18n="boot.detail">Technical note</span>: <span id="bootFailDetail"></span></p>
-      <button type="button" class="btn btn--primary" id="bootReload" data-i18n="boot.reload">Reload the page</button>
-    </div>
-
-    <div class="empty" id="emptyVault" hidden>
-      <p class="empty__title" data-i18n="vault.emptyTitle">The vault is being restocked.</p>
-      <p class="empty__text" data-i18n="vault.emptyText">New pieces are listed here as soon as they arrive. You can also message us to ask what is coming.</p>
-      <button type="button" class="btn btn--primary" id="emptyAdd" hidden data-i18n="admin.add">Add a watch</button>
-    </div>
-
-    <div class="empty" id="emptyState" hidden>
-      <p class="empty__title" data-i18n="empty.title">No pieces match your filters.</p>
-      <p class="empty__text" data-i18n="empty.text">Try another collection, clear the search, or switch off “Available only”.</p>
-      <button type="button" class="btn btn--outline" id="resetFilters" data-i18n="empty.reset">Reset filters</button>
-    </div>
-  </main>
-
-  <section class="partner" aria-labelledby="partnerTitle">
-    <div class="wrap partner__inner">
-      <div class="partner__copy">
-        <p class="eyebrow" data-i18n="partner.eyebrow">For store owners</p>
-        <h2 id="partnerTitle" data-i18n="partner.title">Own a watch store? Sell your watches through Braid.</h2>
-        <p class="partner__text" data-i18n="partner.text">Tell our merchant what you stock. Approved pieces are shown to buyers in Nigeria, Ghana, Kenya and South Africa.</p>
-      </div>
-      <button type="button" class="btn btn--primary" id="partnerOpen" data-i18n="partner.cta">Message the merchant</button>
-    </div>
-  </section>
-
-  <footer class="foot">
-    <div class="wrap foot__inner">
-      <p><strong>BRAID WATCHES</strong> <span class="dim" data-i18n="footer.address">Victoria Island, Lagos · Delivering to Nigeria, Ghana, Kenya &amp; South Africa</span></p>
-      <div class="foot__actions">
-        <button type="button" class="link-btn" id="footerSell" data-i18n="footer.sell">Sell or trade a watch</button>
-        <button type="button" class="link-btn" id="footerPartner" data-i18n="footer.partner">I own a watch store</button>
-        <button type="button" class="btn btn--ghost btn--sm" id="adminToggle">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path stroke-linecap="round" d="M8 11V8a4 4 0 018 0v3"/></svg>
-          <span data-i18n="footer.admin">Staff login</span>
-        </button>
-      </div>
-    </div>
-    <div class="credit">
-      <div class="wrap credit__inner">
-        <svg class="credit__mark" width="44" height="26" viewBox="0 0 44 26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M22 13C17 5 11 3 7 3 3 3 2 8 2 13s1 10 5 10c4 0 10-2 15-10s11-10 15-10c4 0 5 5 5 10s-1 10-5 10c-4 0-10-2-15-10z"/></svg>
-        <p class="credit__line"><span class="credit__label" data-i18n="credit.incorporated">Incorporated by</span><strong>Harmonics AI</strong></p>
-        <p class="credit__line"><span class="credit__label" data-i18n="credit.owner">Owner</span><strong>Möbius Braid</strong></p>
-        <a class="credit__site" href="https://braidmesh.com" target="_blank" rel="noopener noreferrer" aria-label="Braidmesh.com" data-i18n-aria-label="credit.visit">Braidmesh.com</a>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Inspection drawer -->
-  <div class="overlay overlay--right" id="drawerBackdrop" hidden>
-    <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" tabindex="-1">
-      <div class="drawer__bar">
-        <div class="drawer__badges">
-          <span class="ref-badge" id="drawerRef"></span>
-          <span class="pill" id="drawerStatus"></span>
-        </div>
-        <button type="button" class="icon-btn" id="drawerClose" data-i18n-aria-label="a11y.close" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <div class="drawer__body">
-        <section class="dossier-hero">
-          <div class="dossier-hero__art" id="drawerArt"></div>
-          <div class="dossier-hero__info">
-            <div class="row-between">
-              <span class="tier" id="drawerTier"></span>
-              <span class="mono-note" id="drawerYear"></span>
-            </div>
-            <h2 id="drawerTitle"></h2>
-            <p class="price" id="drawerPrice"></p>
-            <p class="mono-note listed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span id="drawerListed"></span></p>
-          </div>
-        </section>
-
-        <section>
-          <h3 class="section-title" data-i18n="drawer.specs">Technical specifications</h3>
-          <dl class="specs">
-            <div><dt data-i18n="spec.ref">Reference</dt><dd id="specRef"></dd></div>
-            <div><dt data-i18n="spec.year">Year</dt><dd id="specYear"></dd></div>
-            <div><dt data-i18n="spec.movement">Movement</dt><dd id="specMovement"></dd></div>
-            <div><dt data-i18n="spec.caliber">Caliber</dt><dd id="specCaliber"></dd></div>
-            <div><dt data-i18n="spec.case">Case</dt><dd id="specCase"></dd></div>
-            <div><dt data-i18n="spec.rate">Timegrapher</dt><dd class="ok" id="specRate"></dd></div>
-          </dl>
-        </section>
-
-        <section>
-          <h3 class="section-title" data-i18n="drawer.matrix">Condition &amp; provenance</h3>
-          <ul class="matrix" id="conditionMatrix"></ul>
-          <ul class="chips-static" id="drawerHighlights"></ul>
-          <p class="notes" id="drawerNotes"></p>
-        </section>
-
-        <section class="admin-tools" id="adminTools" hidden>
-          <h3 class="section-title" data-i18n="tools.title">Admin · photo tools</h3>
-          <fieldset class="field avail avail--quick" id="quickStatus">
-            <legend data-i18n="avail.quickTitle">Is this watch available?</legend>
-            <div class="avail__opts">
-              <label class="avail__opt avail__opt--available"><input type="radio" name="quickStatus" value="available"><span class="avail__head"><span class="avail__dot" aria-hidden="true"></span><span class="avail__name" data-i18n="avail.available">Available</span></span><span class="avail__sub" data-i18n="avail.availableSub">Buyers can order it</span></label>
-              <label class="avail__opt avail__opt--hold"><input type="radio" name="quickStatus" value="hold"><span class="avail__head"><span class="avail__dot" aria-hidden="true"></span><span class="avail__name" data-i18n="avail.hold">On hold</span></span><span class="avail__sub" data-i18n="avail.holdSub">A buyer is talking to us</span></label>
-              <label class="avail__opt avail__opt--sold"><input type="radio" name="quickStatus" value="sold"><span class="avail__head"><span class="avail__dot" aria-hidden="true"></span><span class="avail__name" data-i18n="avail.sold">Sold</span></span><span class="avail__sub" data-i18n="avail.soldSub">Shown as archived</span></label>
-            </div>
-          </fieldset>
-          <div class="admin-tools__row">
-            <button type="button" class="btn btn--primary btn--sm" id="editBtn" data-i18n="tools.edit">Edit details &amp; price</button>
-            <button type="button" class="btn btn--outline btn--sm" id="aiPhotoBtn"><span id="aiPhotoLabel"></span></button>
-            <label class="btn btn--outline btn--sm" for="photoFile" id="uploadLabel" tabindex="0" data-i18n="tools.upload">Upload photo</label>
-            <input type="file" id="photoFile" accept="image/*" class="sr-only">
-            <button type="button" class="btn btn--ghost btn--sm" id="copyImgBtn" data-i18n="tools.copy">Copy image URL</button>
-            <button type="button" class="btn btn--ghost btn--sm" id="clearPhotoBtn" data-i18n="tools.clear">Use illustration</button>
-          </div>
-          <form class="admin-tools__link" id="linkForm" novalidate>
-            <label class="sr-only" for="photoLink" data-i18n="tools.linkLabel">Paste an image link</label>
-            <input type="url" id="photoLink" inputmode="url" autocomplete="off" data-i18n-placeholder="tools.linkPh" placeholder="Paste image link (https://…)">
-            <button type="submit" class="btn btn--primary btn--sm" id="linkBtn" data-i18n="tools.linkUse">Use link</button>
-          </form>
-          <p class="mono-note" id="toolStatus" role="status"></p>
-          <p class="mono-note dim" data-i18n="tools.hint">To publish a photo for every visitor, paste its URL into the image field in watches.js.</p>
-        </section>
-
-        <section class="handoff" aria-labelledby="handoffTitle">
-          <h3 class="handoff__title" id="handoffTitle" data-i18n="handoff.title">Buy this watch · pay the merchant directly</h3>
-          <p class="handoff__intro" data-i18n="handoff.intro">Pick how you want to pay. Nothing is charged on this site: your order goes straight to our merchant, who confirms it and sends secure payment details in chat.</p>
-
-          <form id="handoffForm" class="form" autocomplete="on">
-            <div class="form__grid">
-              <label class="field">
-                <span data-i18n="form.name">Your name or handle</span>
-                <input type="text" id="buyerName" required autocomplete="name" data-i18n-placeholder="ph.buyerName" placeholder="e.g. Tunde A.">
-              </label>
-              <label class="field">
-                <span data-i18n="form.country">Your country</span>
-                <select id="buyerCountry">
-                  <option value="NG" data-i18n="market.NG">Nigeria</option>
-                  <option value="ZA" data-i18n="market.ZA">South Africa</option>
-                  <option value="KE" data-i18n="market.KE">Kenya</option>
-                  <option value="GH" data-i18n="market.GH">Ghana</option>
-                </select>
-              </label>
-            </div>
-            <div class="form__grid">
-              <label class="field">
-                <span data-i18n="form.delivery">Delivery option</span>
-                <select id="deliveryMode"></select>
-              </label>
-              <label class="field">
-                <span data-i18n="form.location">City or address</span>
-                <input type="text" id="buyerLocation" required placeholder="e.g. Lekki Phase 1, Lagos">
-              </label>
-              <label class="field field--full">
-                <span data-i18n="form.contact">Your WhatsApp, Telegram or email</span>
-                <input type="text" id="buyerContact" required maxlength="120" data-i18n-placeholder="form.contactPh" placeholder="e.g. +234 800 000 0000 or @handle">
-                <small class="field__help" data-i18n="form.contactHelp">So the merchant can reply to you, even if your chat app doesn’t open.</small>
-              </label>
-            </div>
-
-            <fieldset class="field pay" id="payBlock">
-              <legend data-i18n="pay.title">How would you like to pay?</legend>
-              <div class="pay__grid" id="payOptions"></div>
-              <div class="pay__sum" aria-live="polite">
-                <span class="pay__label" data-i18n="pay.total">Total</span>
-                <strong id="payAmount"></strong>
-                <span class="pay__local" id="payLocal" hidden></span>
-              </div>
-              <p class="mono-note" data-i18n="pay.safe">Nothing is charged here. The final amount is confirmed in chat. Only pay to account details the merchant sends you in that chat.</p>
-            </fieldset>
-
-            <fieldset class="field channels">
-              <legend data-i18n="form.channel">Chat on</legend>
-              <label class="channel"><input type="radio" name="channel" value="whatsapp" checked><span data-i18n="channel.whatsapp">WhatsApp</span></label>
-              <label class="channel"><input type="radio" name="channel" value="telegram"><span data-i18n="channel.telegram">Telegram</span></label>
-              <label class="channel"><input type="radio" name="channel" value="copy"><span data-i18n="channel.copy">Copy message</span></label>
-            </fieldset>
-
-            <label class="field">
-              <span data-i18n="form.note">Note for the merchant (optional)</span>
-              <input type="text" id="buyerNote" data-i18n-placeholder="form.notePh" placeholder="e.g. Please send a wrist-roll video">
-            </label>
-
-            <button type="submit" class="btn btn--primary btn--block" id="handoffSubmit"><span id="handoffSubmitLabel"></span></button>
-          </form>
-
-          <div id="handoffResult" class="result" hidden>
-            <div class="result__head">
-              <span class="result__title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span data-i18n="result.title">Request ready</span></span>
-              <span class="mono-note" id="ticketId"></span>
-            </div>
-            <p class="result__hint" data-i18n="result.hint">The merchant receives exactly this message and replies with secure payment details. If your chat app didn’t open, use a button below.</p>
-            <p class="inbox-note" id="orderInboxNote" role="status" hidden></p>
-            <ol class="steps" id="orderSteps">
-              <li class="is-done"><span class="steps__dot" aria-hidden="true">1</span><div><strong data-i18n="order.s1">Order sent</strong><small data-i18n="order.s1t">Your request reaches the merchant desk.</small></div></li>
-              <li class="is-now" aria-current="step"><span class="steps__dot" aria-hidden="true">2</span><div><strong data-i18n="order.s2">Merchant confirms</strong><small data-i18n="order.s2t">Availability and final amount, usually within 30 minutes.</small></div></li>
-              <li><span class="steps__dot" aria-hidden="true">3</span><div><strong data-i18n="order.s3">You pay</strong><small id="stepPay"></small></div></li>
-              <li><span class="steps__dot" aria-hidden="true">4</span><div><strong data-i18n="order.s4">Insured delivery</strong><small id="stepShip"></small></div></li>
-            </ol>
-            <pre class="packet" id="dossierText"></pre>
-            <div class="result__actions">
-              <a class="btn btn--wa" id="waLink" href="#" target="_blank" rel="noopener noreferrer" data-i18n="result.whatsapp">Continue on WhatsApp</a>
-              <a class="btn btn--tg" id="tgLink" href="#" target="_blank" rel="noopener noreferrer" data-i18n="result.telegram">Continue on Telegram</a>
-              <button type="button" class="btn btn--outline" id="copyDossier" data-i18n="result.copy">Copy message</button>
-            </div>
-            <button type="button" class="link-btn" id="handoffEdit" data-i18n="result.edit">← Edit details or send another inquiry</button>
-          </div>
-        </section>
-      </div>
-    </aside>
-  </div>
-
-  <!-- Sell / trade modal -->
-  <div class="overlay overlay--center" id="sellBackdrop" hidden>
-    <div class="modal" id="sellModal" role="dialog" aria-modal="true" aria-labelledby="sellTitle" tabindex="-1">
+function modalMarkup() {
+  return `
+    <div class="modal inbox" id="inboxModal" role="dialog" aria-modal="true" aria-labelledby="inboxTitle" tabindex="-1">
       <div class="modal__bar">
         <div>
-          <p class="eyebrow" data-i18n="sell.eyebrow">Two-way vault liquidity</p>
-          <h2 id="sellTitle" data-i18n="sell.title">Sell or trade your watch</h2>
+          <p class="eyebrow">${esc(t('inbox.eyebrow'))}</p>
+          <h2 id="inboxTitle">${esc(t('inbox.title'))}</h2>
         </div>
-        <button type="button" class="icon-btn" id="sellClose" data-i18n-aria-label="a11y.close" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <div class="modal__body">
-        <form id="sellForm" class="form">
-          <p class="mono-note" data-i18n="sell.intro">We buy vintage Rolex, Omega, Cartier, Tudor, Seiko and neo-vintage pieces outright, or take trades toward any vault watch. Add photos and we’ll reply with a cash or trade offer.</p>
-          <div class="form__grid">
-            <label class="field"><span data-i18n="sell.model">Brand &amp; model</span><input type="text" id="sellModel" required data-i18n-placeholder="sell.modelPh" placeholder="e.g. Omega Seamaster 300"></label>
-            <label class="field"><span data-i18n="sell.ref">Reference &amp; year</span><input type="text" id="sellRef" required data-i18n-placeholder="sell.refPh" placeholder="e.g. 166.024 · 1968"></label>
-          </div>
-          <div class="form__grid">
-            <label class="field">
-              <span data-i18n="sell.condition">Condition &amp; papers</span>
-              <select id="sellCondition">
-                <option value="full" data-i18n="cond.full">Full set (box &amp; papers)</option>
-                <option value="unpolished" data-i18n="cond.unpolished">Watch only — unpolished</option>
-                <option value="serviced" data-i18n="cond.serviced">Watch only — recently serviced</option>
-                <option value="project" data-i18n="cond.project">Needs service / project</option>
-              </select>
-            </label>
-            <label class="field">
-              <span data-i18n="sell.intent">What would you like?</span>
-              <select id="sellIntent">
-                <option value="cash" data-i18n="intent.cash">Cash offer</option>
-                <option value="trade" data-i18n="intent.trade">Trade toward a vault piece</option>
-                <option value="either" data-i18n="intent.either">Either — best offer</option>
-              </select>
-            </label>
-          </div>
-          <label class="field"><span data-i18n="sell.price">Target price (₦)</span><input type="text" id="sellPrice" required data-i18n-placeholder="sell.pricePh" placeholder="e.g. ₦5,000,000 or open to offers"></label>
-
-          <div class="field">
-            <span data-i18n="sell.photos">Photos (up to 3: dial, case, caseback)</span>
-            <label class="dropzone" for="sellPhotos" tabindex="0" id="sellDrop">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              <span data-i18n="sell.photosAdd">Choose photos</span>
-            </label>
-            <input type="file" id="sellPhotos" accept="image/*" multiple class="sr-only">
-            <div class="thumbs" id="sellThumbs"></div>
-            <p class="mono-note" id="sellPhotoNote" role="status"></p>
-          </div>
-
-          <label class="field"><span data-i18n="sell.contact">Your WhatsApp, Telegram or email</span><input type="text" id="sellContact" required data-i18n-placeholder="sell.contactPh" placeholder="e.g. +234 800 000 0000 or @handle"></label>
-          <button type="submit" class="btn btn--primary btn--block" id="sellSubmit"><span id="sellSubmitLabel"></span></button>
-        </form>
-
-        <div id="sellDone" class="result" hidden>
-          <div class="result__head">
-            <span class="result__title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span data-i18n="sell.done.title">Valuation request ready</span></span>
-            <span class="mono-note" id="sellTicket"></span>
-          </div>
-          <p class="result__hint" data-i18n="sell.done.text">Send this to our acquisition desk and attach your photos in the chat. Offers usually come back within 30 minutes.</p>
-          <p class="mono-note" id="sellUploadNote"></p>
-          <p class="inbox-note" id="sellInboxNote" role="status" hidden></p>
-          <pre class="packet" id="sellSummary"></pre>
-          <div class="result__actions">
-            <a class="btn btn--wa" id="sellWa" href="#" target="_blank" rel="noopener noreferrer" data-i18n="result.whatsapp">Continue on WhatsApp</a>
-            <a class="btn btn--tg" id="sellTg" href="#" target="_blank" rel="noopener noreferrer" data-i18n="result.telegram">Continue on Telegram</a>
-            <button type="button" class="btn btn--outline" id="sellCopy" data-i18n="result.copy">Copy message</button>
-          </div>
-          <button type="button" class="link-btn" id="sellAnother" data-i18n="sell.another">Submit another watch</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Watch editor modal (admin) -->
-  <div class="overlay overlay--center" id="editBackdrop" hidden>
-    <div class="modal" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editTitle" tabindex="-1">
-      <div class="modal__bar">
-        <div>
-          <p class="eyebrow" data-i18n="editor.eyebrow">Vault admin</p>
-          <h2 id="editTitle"></h2>
-        </div>
-        <button type="button" class="icon-btn" id="editClose" data-i18n-aria-label="a11y.close" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
+        <button type="button" class="icon-btn" id="inboxClose" aria-label="${esc(t('a11y.close'))}">${CLOSE_ICON}</button>
       </div>
       <div class="modal__body">
-        <form id="editForm" class="form" novalidate>
-          <div class="form__grid">
-            <label class="field"><span data-i18n="editor.brand">Brand</span><input type="text" id="editBrand" autocomplete="off" data-i18n-placeholder="editor.brandPh" placeholder="e.g. Rolex"></label>
-            <label class="field"><span data-i18n="editor.model">Model</span><input type="text" id="editModel" autocomplete="off" data-i18n-placeholder="editor.modelPh" placeholder="e.g. Datejust 16014"></label>
-          </div>
-          <div class="form__grid">
-            <label class="field"><span data-i18n="editor.ref">Reference</span><input type="text" id="editRef" autocomplete="off" data-i18n-placeholder="editor.refPh" placeholder="e.g. 16014"></label>
-            <label class="field"><span data-i18n="editor.year">Year</span><input type="text" id="editYear" inputmode="numeric" autocomplete="off" data-i18n-placeholder="editor.yearPh" placeholder="e.g. 1984"></label>
-          </div>
-          <div class="form__grid">
-            <label class="field"><span data-i18n="editor.price">Price (₦ Naira)</span><input type="text" id="editPrice" inputmode="numeric" autocomplete="off" data-i18n-placeholder="editor.pricePh" placeholder="e.g. 11,450,000"></label>
-          </div>
-          <fieldset class="field avail" id="editStatusGroup">
-            <legend data-i18n="editor.status">Availability</legend>
-            <p class="mono-note avail__help" data-i18n="avail.help">Choose whether buyers can order this watch right now.</p>
-            <div class="avail__opts">
-              <label class="avail__opt avail__opt--available"><input type="radio" name="editStatus" value="available"><span class="avail__head"><span class="avail__dot" aria-hidden="true"></span><span class="avail__name" data-i18n="avail.available">Available</span></span><span class="avail__sub" data-i18n="avail.availableSub">Buyers can order it</span></label>
-              <label class="avail__opt avail__opt--hold"><input type="radio" name="editStatus" value="hold"><span class="avail__head"><span class="avail__dot" aria-hidden="true"></span><span class="avail__name" data-i18n="avail.hold">On hold</span></span><span class="avail__sub" data-i18n="avail.holdSub">A buyer is talking to us</span></label>
-              <label class="avail__opt avail__opt--sold"><input type="radio" name="editStatus" value="sold"><span class="avail__head"><span class="avail__dot" aria-hidden="true"></span><span class="avail__name" data-i18n="avail.sold">Sold</span></span><span class="avail__sub" data-i18n="avail.soldSub">Shown as archived</span></label>
-            </div>
-          </fieldset>
-          <div class="form__grid">
-            <label class="field">
-              <span data-i18n="editor.tier">Collection</span>
-              <select id="editTier">
-                <option value="daily" data-i18n="tier.daily">Daily driver</option>
-                <option value="collector" data-i18n="tier.collector">Collector staple</option>
-                <option value="vault" data-i18n="tier.vault">Vault anchor</option>
-                <option value="neo" data-i18n="tier.neo">Neo-vintage</option>
-                <option value="other" data-i18n="tier.other">Other watches</option>
-              </select>
-            </label>
-            <label class="field">
-              <span data-i18n="kind.label">Watch type</span>
-              <select id="editKind">
-                <option value="normal" data-i18n="kind.normal">Normal watch</option>
-                <option value="classic" data-i18n="kind.classic">Classic</option>
-                <option value="vintage" data-i18n="kind.vintage">Vintage</option>
-              </select>
-            </label>
-          </div>
-          <p class="mono-note" data-i18n="kind.help">Normal is a current everyday watch, Classic is a timeless older design, Vintage is 30 years or older.</p>
-          <div class="form__grid">
-            <label class="field"><span data-i18n="editor.caliber">Caliber</span><input type="text" id="editCaliber" autocomplete="off" data-i18n-placeholder="editor.caliberPh" placeholder="e.g. Cal. 3035"></label>
-            <label class="field"><span data-i18n="editor.case">Case</span><input type="text" id="editCase" autocomplete="off" data-i18n-placeholder="editor.casePh" placeholder="e.g. 36mm steel"></label>
-          </div>
-          <div class="form__grid">
-            <label class="field"><span data-i18n="editor.movement">Movement</span><input type="text" id="editMovement" autocomplete="off" data-i18n-placeholder="editor.movementPh" placeholder="e.g. Automatic"></label>
-            <label class="field"><span data-i18n="editor.rate">Timegrapher result</span><input type="text" id="editRate" autocomplete="off" data-i18n-placeholder="editor.ratePh" placeholder="e.g. +2 s/d · 290°"></label>
-          </div>
-          <fieldset class="field">
-            <legend data-i18n="editor.conditions">Condition &amp; provenance</legend>
-            <div class="checks">
-              <label class="check"><input type="checkbox" name="cond" value="box"><span data-i18n="tag.box">Box &amp; papers</span></label>
-              <label class="check"><input type="checkbox" name="cond" value="unpolished"><span data-i18n="tag.unpolished">Unpolished case</span></label>
-              <label class="check"><input type="checkbox" name="cond" value="serviced"><span data-i18n="tag.serviced">Serviced 2026</span></label>
-              <label class="check"><input type="checkbox" name="cond" value="originalDial"><span data-i18n="tag.originalDial">Original dial</span></label>
-            </div>
-          </fieldset>
-          <label class="field"><span data-i18n="editor.highlights">Highlights (one per line)</span><textarea id="editHighlights" rows="3" data-i18n-placeholder="editor.highlightsPh" placeholder="e.g. Fluted white-gold bezel"></textarea></label>
-          <label class="field"><span data-i18n="editor.notes">Description</span><textarea id="editNotes" rows="4" data-i18n-placeholder="editor.notesPh" placeholder="Tell buyers what makes this piece special."></textarea></label>
-          <fieldset class="field editor-photo">
-            <legend data-i18n="editor.photo">Photo (optional)</legend>
-            <div class="editor-photo__row">
-              <div class="editor-photo__preview">
-                <img id="editPhotoImg" alt="" hidden>
-                <span class="mono-note" id="editPhotoEmpty" data-i18n="editor.photoNone">No photo yet. A drawing is shown until you add one.</span>
-              </div>
-              <div class="editor-photo__actions">
-                <label class="btn btn--outline btn--sm" for="editPhotoFile" id="editPhotoLabel" tabindex="0" data-i18n="editor.photoUpload">Upload photo</label>
-                <input type="file" id="editPhotoFile" accept="image/*" class="sr-only">
-                <button type="button" class="btn btn--ghost btn--sm" id="editPhotoRemove" hidden data-i18n="editor.photoRemove">Remove photo</button>
-              </div>
-            </div>
-            <div class="admin-tools__link">
-              <label class="sr-only" for="editPhotoLink" data-i18n="tools.linkLabel">Paste an image link</label>
-              <input type="url" id="editPhotoLink" inputmode="url" autocomplete="off" data-i18n-placeholder="tools.linkPh" placeholder="Paste image link (https://…)">
-              <button type="button" class="btn btn--outline btn--sm" id="editPhotoUseLink" data-i18n="tools.linkUse">Use link</button>
-            </div>
-            <p class="mono-note" id="editPhotoStatus" role="status"></p>
-          </fieldset>
-          <fieldset class="field look" id="lookSet">
-            <legend data-i18n="look.title">Watch drawing</legend>
-            <p class="mono-note" data-i18n="look.help">This drawing shows on the card until you add a photo. Pick a starting style, then adjust the shape and colours.</p>
-            <div class="look__presets" id="lookPresets" role="group" data-i18n-aria-label="look.presets" aria-label="Starting styles"></div>
-            <div class="look__body">
-              <div class="look__preview" id="lookPreview" role="img" data-i18n-aria-label="look.previewAlt" aria-label="Drawing preview"></div>
-              <div class="look__fields">
-                <label class="field">
-                  <span data-i18n="look.shapeLabel">Case shape</span>
-                  <select id="lookShape">
-                    <option value="round" data-i18n="look.shape.round">Round</option>
-                    <option value="cushion" data-i18n="look.shape.cushion">Cushion</option>
-                    <option value="tank" data-i18n="look.shape.tank">Tank (rectangular)</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span data-i18n="look.strapLabel">Strap</span>
-                  <select id="lookStrap">
-                    <option value="leather" data-i18n="look.strap.leather">Leather</option>
-                    <option value="oyster" data-i18n="look.strap.oyster">Oyster bracelet</option>
-                    <option value="jubilee" data-i18n="look.strap.jubilee">Jubilee bracelet</option>
-                  </select>
-                </label>
-                <label class="field" id="lookPatternField">
-                  <span data-i18n="look.patternLabel">Dial style</span>
-                  <select id="lookPattern">
-                    <option value="plain" data-i18n="look.pattern.plain">Plain</option>
-                    <option value="sunburst" data-i18n="look.pattern.sunburst">Sunburst</option>
-                    <option value="linen" data-i18n="look.pattern.linen">Linen texture</option>
-                    <option value="crosshair" data-i18n="look.pattern.crosshair">Crosshair</option>
-                    <option value="explorer" data-i18n="look.pattern.explorer">3-6-9 numerals</option>
-                    <option value="diver" data-i18n="look.pattern.diver">Diver dots</option>
-                    <option value="chrono-single" data-i18n="look.pattern.chrono-single">Chronograph, 1 dial</option>
-                    <option value="chrono-tri" data-i18n="look.pattern.chrono-tri">Chronograph, 3 dials</option>
-                  </select>
-                </label>
-                <label class="field" id="lookBezelField">
-                  <span data-i18n="look.bezelLabel">Bezel</span>
-                  <select id="lookBezel">
-                    <option value="smooth-steel" data-i18n="look.bezel.smooth-steel">Smooth, case colour</option>
-                    <option value="smooth-gold" data-i18n="look.bezel.smooth-gold">Smooth gold</option>
-                    <option value="fluted" data-i18n="look.bezel.fluted">Fluted</option>
-                    <option value="pepsi" data-i18n="look.bezel.pepsi">Red &amp; blue</option>
-                    <option value="diver-black" data-i18n="look.bezel.diver-black">Black diver</option>
-                    <option value="tacho" data-i18n="look.bezel.tacho">Tachymeter</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-            <div class="look__colors">
-              <label class="swatch"><input type="color" id="lookDial"><span data-i18n="look.dial">Dial</span></label>
-              <label class="swatch"><input type="color" id="lookCase"><span data-i18n="look.case">Case</span></label>
-              <label class="swatch"><input type="color" id="lookStrapColor"><span data-i18n="look.strapColor">Strap</span></label>
-              <label class="swatch" id="lookMarksField"><input type="color" id="lookMarks"><span data-i18n="look.marks">Markers</span></label>
-            </div>
-            <label class="check" id="lookCyclopsField"><input type="checkbox" id="lookCyclops"><span data-i18n="look.cyclops">Date magnifier (cyclops)</span></label>
-          </fieldset>
-          <label class="field">
-            <span data-i18n="extra.listed">Listing date &amp; time</span>
-            <input type="datetime-local" id="editListed">
-            <span class="mono-note field__note" data-i18n="extra.listedHelp">Buyers see this on the card. Leave it as it is for a fresh arrival.</span>
-          </label>
-          <label class="check"><input type="checkbox" id="editFeatured"><span data-i18n="editor.featured">Show as a wide featured card</span></label>
-          <p class="login-error" id="editError" role="alert"></p>
-          <div class="editor-actions">
-            <button type="submit" class="btn btn--primary" id="editSave" data-i18n="editor.save">Save watch</button>
-            <button type="button" class="btn btn--ghost" id="editCancel" data-i18n="editor.cancel">Cancel</button>
-            <button type="button" class="btn btn--danger" id="editDelete" hidden><span id="editDeleteLabel"></span></button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Admin sign-in modal -->
-  <div class="overlay overlay--center" id="loginBackdrop" hidden>
-    <div class="modal modal--sm" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginTitle" tabindex="-1">
-      <div class="modal__bar">
-        <div>
-          <p class="eyebrow" data-i18n="login.eyebrow">Staff only</p>
-          <h2 id="loginTitle" data-i18n="login.title">Admin sign-in</h2>
+        <div class="inbox__tools">
+          <label class="check"><input type="checkbox" id="inboxShowDone"><span>${esc(t('inbox.showDone'))}</span></label>
+          <button type="button" class="btn btn--outline btn--sm" id="inboxRefresh">${esc(t('inbox.refresh'))}</button>
         </div>
-        <button type="button" class="icon-btn" id="loginClose" data-i18n-aria-label="a11y.close" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
+        <p class="mono-note" id="inboxStatus" role="status"></p>
+        <p class="inbox__empty" id="inboxEmpty" hidden></p>
+        <ul class="inbox__list" id="inboxList"></ul>
       </div>
-      <div class="modal__body">
-        <form id="loginForm" class="form" novalidate>
-          <p class="mono-note" data-i18n="login.intro">Sign in to change watch photos and availability.</p>
-          <label class="field">
-            <span data-i18n="login.pass">Admin passcode</span>
-            <input type="password" id="loginPass" autocomplete="current-password" required>
-          </label>
-          <label class="check">
-            <input type="checkbox" id="loginRemember">
-            <span data-i18n="login.remember">Keep me signed in on this device</span>
-          </label>
-          <p class="login-error" id="loginError" role="alert"></p>
-          <button type="submit" class="btn btn--primary btn--block" id="loginSubmit" data-i18n="login.submit">Sign in</button>
-        </form>
-      </div>
-    </div>
-  </div>
+    </div>`;
+}
 
-  <!-- Store owner modal -->
-  <div class="overlay overlay--center" id="ptBackdrop" hidden>
-    <div class="modal" id="ptModal" role="dialog" aria-modal="true" aria-labelledby="ptTitle" tabindex="-1">
-      <div class="modal__bar">
-        <div>
-          <p class="eyebrow" data-i18n="partner.eyebrow">For store owners</p>
-          <h2 id="ptTitle" data-i18n="partner.modalTitle">Sell your watches with us</h2>
+export function initInbox({ onAuthLost }) {
+  const btn = $('inboxBtn');
+  const badge = $('inboxCount');
+  let overlay = null;
+  let items = null;
+  let known = null;
+  let loading = false;
+  let showDone = false;
+  let confirmId = '';
+  let confirmTimer = 0;
+  let pollTimer = 0;
+
+  const unread = () => (items || []).filter((i) => !i.done).length;
+  const setStatus = (key) => { const el = $('inboxStatus'); if (el) el.textContent = key ? t(key) : ''; };
+
+  function setBadge() {
+    const n = unread();
+    badge.hidden = n === 0;
+    badge.textContent = String(n);
+  }
+
+  function itemHTML(it, open) {
+    const kind = KINDS.includes(it.kind) ? it.kind : 'order';
+    const reply = replyLinks(it.contact, it.country).map((l) => {
+      const style = l.type === 'wa' ? 'btn--wa' : l.type === 'tg' ? 'btn--tg' : 'btn--outline';
+      return `<a class="btn ${style} btn--sm" href="${esc(l.href)}" target="_blank" rel="noopener noreferrer">${esc(t(`inbox.reply.${l.type}`))}</a>`;
+    }).join('');
+    const meta = [
+      it.contact ? t('inbox.contact', { contact: it.contact }) : t('inbox.noContact'),
+      it.country ? t(`market.${it.country}`) : '',
+      it.ticket ? `#${it.ticket}` : '',
+    ].filter(Boolean).join(' · ');
+    const id = esc(it.id);
+    return `
+      <li class="inbox__item ${it.done ? 'is-done' : 'is-new'}">
+        <div class="inbox__head">
+          <span class="inbox__kind inbox__kind--${kind}">${esc(t(`inbox.kind.${kind}`))}</span>
+          <strong class="inbox__title">${esc(it.title || t(`inbox.kind.${kind}`))}</strong>
+          <span class="inbox__flag">${esc(t(it.done ? 'inbox.handled' : 'inbox.new'))}</span>
         </div>
-        <button type="button" class="icon-btn" id="ptClose" data-i18n-aria-label="a11y.close" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <div class="modal__body">
-        <form id="ptForm" class="form">
-          <p class="mono-note" data-i18n="partner.intro">Share a few details about your store. We send them to our merchant, who replies on WhatsApp or Telegram, usually within a day.</p>
-          <div class="form__grid">
-            <label class="field"><span data-i18n="partner.store">Store name</span><input type="text" id="ptStore" required autocomplete="organization" data-i18n-placeholder="partner.storePh" placeholder="e.g. Mensah Time &amp; Co."></label>
-            <label class="field"><span data-i18n="partner.owner">Your name</span><input type="text" id="ptOwner" required autocomplete="name" data-i18n-placeholder="partner.ownerPh" placeholder="e.g. Kwame Mensah"></label>
-          </div>
-          <div class="form__grid">
-            <label class="field">
-              <span data-i18n="partner.country">Country</span>
-              <select id="ptCountry">
-                <option value="NG" data-i18n="market.NG">Nigeria</option>
-                <option value="ZA" data-i18n="market.ZA">South Africa</option>
-                <option value="KE" data-i18n="market.KE">Kenya</option>
-                <option value="GH" data-i18n="market.GH">Ghana</option>
-              </select>
-            </label>
-            <label class="field"><span data-i18n="partner.city">City</span><input type="text" id="ptCity" required autocomplete="address-level2" data-i18n-placeholder="partner.cityPh" placeholder="e.g. Accra"></label>
-          </div>
-          <div class="form__grid">
-            <label class="field">
-              <span data-i18n="partner.stock">What do you sell?</span>
-              <select id="ptStock">
-                <option value="vintage" data-i18n="partner.stockOpt.vintage">Vintage &amp; classic watches</option>
-                <option value="modern" data-i18n="partner.stockOpt.modern">Modern luxury watches</option>
-                <option value="mixed" data-i18n="partner.stockOpt.mixed">A mix of both</option>
-              </select>
-            </label>
-            <label class="field">
-              <span data-i18n="partner.volume">How many watches?</span>
-              <select id="ptVolume">
-                <option value="small" data-i18n="partner.volOpt.small">1 to 10 watches</option>
-                <option value="mid" data-i18n="partner.volOpt.mid">11 to 50 watches</option>
-                <option value="large" data-i18n="partner.volOpt.large">More than 50 watches</option>
-              </select>
-            </label>
-          </div>
-          <label class="field"><span data-i18n="partner.contact">Your WhatsApp, Telegram or email</span><input type="text" id="ptContact" required data-i18n-placeholder="partner.contactPh" placeholder="e.g. +233 20 000 0000 or @handle"></label>
-          <label class="field"><span data-i18n="partner.message">Anything else? (optional)</span><textarea id="ptMessage" rows="3" data-i18n-placeholder="partner.messagePh" placeholder="e.g. I want to list 12 Omegas and a few Seikos."></textarea></label>
-          <button type="submit" class="btn btn--primary btn--block" id="ptSubmit" data-i18n="partner.submit">Message the merchant</button>
-        </form>
-
-        <div id="ptDone" class="result" hidden>
-          <div class="result__head">
-            <span class="result__title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span data-i18n="partner.doneTitle">Store message ready</span></span>
-            <span class="mono-note" id="ptTicket"></span>
-          </div>
-          <p class="result__hint" data-i18n="partner.doneText">Send this to our merchant. Add photos of your best pieces in the chat to speed things up.</p>
-          <p class="inbox-note" id="ptInboxNote" role="status" hidden></p>
-          <pre class="packet" id="ptSummary"></pre>
-          <div class="result__actions">
-            <a class="btn btn--wa" id="ptWa" href="#" target="_blank" rel="noopener noreferrer" data-i18n="result.whatsapp">Continue on WhatsApp</a>
-            <a class="btn btn--tg" id="ptTg" href="#" target="_blank" rel="noopener noreferrer" data-i18n="result.telegram">Continue on Telegram</a>
-            <button type="button" class="btn btn--outline" id="ptCopy" data-i18n="result.copy">Copy message</button>
-          </div>
-          <button type="button" class="link-btn" id="ptAnother" data-i18n="partner.another">Send another message</button>
+        <p class="inbox__meta">${esc(fmtDateTime(it.at))}</p>
+        <p class="inbox__meta">${esc(meta)}</p>
+        <details${open ? ' open' : ''}>
+          <summary>${esc(t('inbox.read'))}</summary>
+          <pre class="packet">${linkify(it.text || '')}</pre>
+        </details>
+        <div class="inbox__actions">
+          ${reply}
+          <button type="button" class="btn btn--outline btn--sm" data-act="copy" data-id="${id}">${esc(t('inbox.copy'))}</button>
+          <button type="button" class="btn btn--ghost btn--sm" data-act="${it.done ? 'reopen' : 'done'}" data-id="${id}">${esc(t(it.done ? 'inbox.reopen' : 'inbox.done'))}</button>
+          <button type="button" class="btn btn--ghost btn--sm btn--danger" data-act="delete" data-id="${id}">${esc(t(confirmId === it.id ? 'inbox.deleteSure' : 'inbox.delete'))}</button>
         </div>
-      </div>
-    </div>
-  </div>
+      </li>`;
+  }
 
-  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  function render() {
+    if (!overlay) return;
+    const rows = (items || []).filter((i) => showDone || !i.done);
+    const empty = $('inboxEmpty');
+    empty.hidden = items === null || rows.length > 0;
+    empty.textContent = t(items && items.length ? 'inbox.emptyNew' : 'inbox.empty');
+    let opened = 0;
+    $('inboxList').innerHTML = rows.map((it) => itemHTML(it, !it.done && opened++ < OPEN_FIRST)).join('');
+  }
 
-  <script src="boot-guard.js"></script>
-  <script type="module" src="main.js"></script>
-</body>
-</html>
+  function failed(err) {
+    if (err && err.code === 'AUTH') { onAuthLost(); return; }
+    toast(t('inbox.actionFailed'));
+  }
 
+  async function refresh(quiet) {
+    if (loading || !backend.hasDatabase()) return;
+    loading = true;
+    if (!quiet) setStatus('inbox.loading');
+    try {
+      const list = await backend.loadInbox();
+      items = list.filter((i) => i && typeof i.id === 'string');
+      const n = unread();
+      if (known !== null && n > known) toast(t('inbox.newToast'));
+      known = n;
+      setStatus('');
+      setBadge();
+      render();
+    } catch (err) {
+      if (err && err.code === 'AUTH') onAuthLost();
+      else if (!quiet) setStatus('inbox.error');
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function setDone(it, done) {
+    it.done = done;
+    render();
+    setBadge();
+    try {
+      await backend.markInbox(it.id, done);
+    } catch (err) {
+      it.done = !done;
+      render();
+      setBadge();
+      failed(err);
+    }
+  }
+
+  async function remove(it) {
+    if (confirmId !== it.id) {
+      confirmId = it.id;
+      clearTimeout(confirmTimer);
+      confirmTimer = setTimeout(() => { confirmId = ''; render(); }, 4000);
+      render();
+      $('inboxList').querySelector(`[data-act="delete"][data-id="${CSS.escape(it.id)}"]`)?.focus();
+      return;
+    }
+    clearTimeout(confirmTimer);
+    confirmId = '';
+    try {
+      await backend.deleteInbox(it.id);
+      items = items.filter((i) => i.id !== it.id);
+      known = unread();
+      render();
+      setBadge();
+      toast(t('inbox.deleted'));
+    } catch (err) {
+      render();
+      failed(err);
+    }
+  }
+
+  async function onAction(e) {
+    const el = e.target.closest('[data-act]');
+    const it = el && (items || []).find((i) => i.id === el.dataset.id);
+    if (!it) return;
+    const act = el.dataset.act;
+    if (act === 'copy') toast(t((await copyText(it.text)) ? 'toast.copied' : 'toast.copyFailed'));
+    else if (act === 'done' || act === 'reopen') await setDone(it, act === 'done');
+    else if (act === 'delete') await remove(it);
+  }
+
+  function build() {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'overlay overlay--center';
+    backdrop.id = 'inboxBackdrop';
+    backdrop.hidden = true;
+    backdrop.innerHTML = modalMarkup();
+    document.body.appendChild(backdrop);
+    overlay = createOverlay(backdrop, $('inboxModal'));
+    $('inboxClose').addEventListener('click', () => overlay.close());
+    $('inboxRefresh').addEventListener('click', () => refresh(false));
+    $('inboxShowDone').addEventListener('change', (e) => { showDone = e.target.checked; render(); });
+    $('inboxList').addEventListener('click', onAction);
+  }
+
+  function open() {
+    if (!overlay) build();
+    overlay.open($('inboxClose'));
+    if (!backend.hasDatabase()) {
+      setStatus('inbox.needDb');
+      $('inboxEmpty').hidden = true;
+      $('inboxList').innerHTML = '';
+      return;
+    }
+    setStatus('');
+    render();
+    refresh(false);
+  }
+
+  // Called when an admin signs in or out: starts or stops checking for new messages.
+  function watch(on) {
+    clearInterval(pollTimer);
+    if (!on) {
+      items = null;
+      known = null;
+      badge.hidden = true;
+      if (overlay && overlay.isOpen()) overlay.close();
+      return;
+    }
+    if (!backend.hasDatabase()) return;
+    refresh(true);
+    pollTimer = setInterval(() => { if (!document.hidden) refresh(true); }, POLL_MS);
+  }
+
+  btn.addEventListener('click', open);
+
+  return { open, watch };
+}
