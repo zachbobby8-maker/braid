@@ -1,0 +1,43 @@
+/* Merchant inbox, buyer "copy saved" notes, and the photo-link bridge */
+
+.count-badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--bg); color: var(--primary); font-size: 11px; font-weight: 700; line-height: 20px; text-align: center; letter-spacing: 0; }
+
+.field--full { grid-column: 1 / -1; }
+.field__help { margin: 0; font-size: 11px; color: var(--muted); }
+
+.inbox-note { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.inbox-note.is-ok { color: var(--ok); }
+.inbox-note.is-warn { color: var(--hold); }
+
+.modal.inbox { width: min(760px, 100%); }
+.inbox__tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s3); }
+.inbox__tools .check { min-height: 40px; }
+#inboxStatus { margin: 0 0 var(--s3); min-height: 1em; }
+.inbox__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }
+.inbox__empty { margin: 0; padding: var(--s5) var(--s4); text-align: center; border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+.inbox__item { display: grid; gap: var(--s2); padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); min-width: 0; }
+.inbox__item.is-new { border-color: color-mix(in srgb, var(--gold) 55%, transparent); }
+.inbox__item.is-done { opacity: 0.72; }
+.inbox__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.inbox__title { flex: 1 1 160px; min-width: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.inbox__kind { padding: 2px 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface-2); color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.inbox__kind--order { color: var(--ok); }
+.inbox__kind--sell { color: var(--hold); }
+.inbox__kind--partner { color: var(--gold); }
+.inbox__flag { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.inbox__item.is-new .inbox__flag { color: var(--gold); font-weight: 700; }
+.inbox__meta { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.inbox__item summary { display: flex; align-items: center; min-height: 40px; cursor: pointer; font-size: 12px; color: var(--gold); }
+.inbox__item summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.inbox__item .packet a { color: var(--gold); }
+.inbox__actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.inbox__actions .btn--danger { margin-left: auto; }
+
+.links-box { flex: 1 1 100%; display: grid; gap: var(--s2); }
+.links-box .field textarea { font-family: var(--font-mono); font-size: 11px; }
+
+@media (max-width: 520px) {
+  .inbox__actions .btn { flex: 1 1 auto; }
+  .inbox__actions .btn--danger { margin-left: 0; }
+}
