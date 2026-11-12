@@ -87,7 +87,7 @@
   "results": { "count": "Showing {shown} of {total} pieces", "available": "{n} available in vault" },
   "boot": {
     "title": "The vault didn’t open.",
-    "text": "Something didn’t load. Reload the page to try again. If it keeps happening, send the technical note below to your site builder.",
+    "text": "Something didn’t load. Reload the page to try again. If it keeps happening, the note below names the file that is missing from your site. Upload it and redeploy.",
     "detail": "Technical note",
     "reload": "Reload the page"
   },
