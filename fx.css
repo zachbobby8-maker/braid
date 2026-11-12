@@ -1,0 +1,214 @@
+/* Visual effects layer. Loads after styles.css and only adds polish: ambient light, hero watch,
+   tilting cards, shine and glow. Tokens come first so both themes stay in sync. */
+@property --fx-ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+:root {
+  --fx-grid: rgba(255, 255, 255, 0.035);
+  --fx-glow-a: rgba(212, 175, 55, 0.16);
+  --fx-glow-b: rgba(52, 211, 153, 0.09);
+  --fx-spot: rgba(212, 175, 55, 0.1);
+  --fx-grain: 0.08;
+  --fx-shine: rgba(255, 255, 255, 0.28);
+  --gold-hi: #f3de8a;
+  --gold-lo: #8a6a14;
+  --fx-gold-grad: linear-gradient(110deg, var(--gold-lo), var(--gold) 30%, var(--gold-hi) 55%, var(--gold) 75%, var(--gold-lo));
+  --fx-btn: linear-gradient(135deg, var(--gold-hi), var(--primary) 50%, var(--gold-lo));
+  --fx-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-theme="archive"] {
+  --fx-grid: rgba(26, 26, 26, 0.05);
+  --fx-glow-a: rgba(134, 105, 15, 0.13);
+  --fx-glow-b: rgba(11, 122, 83, 0.08);
+  --fx-spot: rgba(134, 105, 15, 0.09);
+  --fx-grain: 0.05;
+  --fx-shine: rgba(255, 255, 255, 0.4);
+  --gold-hi: #b8932a;
+  --gold-lo: #5d470a;
+  --fx-btn: var(--primary);
+}
+
+/* ---------- Ambient background ---------- */
+.ambient { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.ambient__grid {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(var(--fx-grid) 1px, transparent 1px), linear-gradient(90deg, var(--fx-grid) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 15%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 15%, transparent 75%);
+}
+.ambient__blob { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; }
+.ambient__blob--a { top: -28vmax; left: -18vmax; background: radial-gradient(circle, var(--fx-glow-a), transparent 65%); animation: fx-drift-a 26s ease-in-out infinite alternate; }
+.ambient__blob--b { right: -24vmax; top: 30vh; background: radial-gradient(circle, var(--fx-glow-b), transparent 65%); animation: fx-drift-b 32s ease-in-out infinite alternate; }
+.ambient__spot {
+  position: absolute; left: 0; top: 0; width: 560px; height: 560px; margin: -280px 0 0 -280px; border-radius: 50%;
+  background: radial-gradient(circle, var(--fx-spot), transparent 65%);
+  transform: translate3d(var(--gx, 50vw), var(--gy, 30vh), 0); opacity: 0; transition: opacity 0.5s;
+}
+.ambient.is-on .ambient__spot { opacity: 1; }
+.ambient::after {
+  content: ""; position: absolute; inset: 0; opacity: var(--fx-grain); mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@keyframes fx-drift-a { to { transform: translate3d(14vmax, 10vmax, 0) scale(1.15); } }
+@keyframes fx-drift-b { to { transform: translate3d(-16vmax, -8vmax, 0) scale(1.1); } }
+
+.progress { position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 90; pointer-events: none; }
+.progress span { display: block; height: 100%; background: var(--fx-gold-grad); box-shadow: 0 0 14px var(--gold); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); }
+
+/* ---------- Header ---------- */
+.brand__mark { position: relative; }
+.brand__mark::before {
+  content: ""; position: absolute; inset: -4px; border-radius: 50%;
+  background: conic-gradient(transparent 0 50%, var(--gold) 85%, var(--gold-hi) 95%, transparent);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  animation: fx-rot 6s linear infinite;
+}
+.brand__name { background: var(--fx-gold-grad); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; animation: fx-shimmer 8s ease-in-out infinite; }
+.filters { border-top-color: color-mix(in srgb, var(--gold) 24%, var(--line)); }
+.chip.is-active { box-shadow: 0 8px 22px -10px var(--primary); }
+.chip:hover { transform: translateY(-1px); }
+.foot { border-image: linear-gradient(90deg, transparent, var(--gold), transparent) 1; }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; }
+.hero__inner { display: grid; grid-template-columns: 1fr; gap: var(--s5); }
+.hero__copy { position: relative; z-index: 1; }
+.hero .eyebrow { display: inline-flex; align-items: center; gap: var(--s2); }
+.hero .eyebrow::before { content: ""; width: 28px; height: 1px; background: var(--fx-gold-grad); }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .hero h1 {
+    background: linear-gradient(100deg, var(--text) 0 38%, var(--gold-hi) 50%, var(--text) 62% 100%);
+    background-size: 260% 100%; -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent; animation: fx-shimmer 10s ease-in-out infinite;
+  }
+}
+.hero__visual { position: relative; isolation: isolate; width: min(80vw, 360px); aspect-ratio: 1 / 1; margin-inline: auto; animation: fx-rise 1.2s var(--fx-ease) backwards; }
+.hero-watch { width: 100%; height: 100%; overflow: visible; filter: var(--art-shadow); translate: calc(var(--px, 0) * 14px) calc(var(--py, 0) * 14px); transition: translate 0.4s ease-out; }
+.hw-orbit { transform-origin: 200px 200px; animation: fx-rot 52s linear infinite; }
+.hw-orbit--b { animation-duration: 76s; animation-direction: reverse; }
+.hw-breathe { transform-origin: 200px 200px; animation: fx-breathe 5s ease-in-out infinite; }
+.hw-glint { animation: fx-glint 7s ease-in-out infinite; }
+.float-tag {
+  position: absolute; display: inline-flex; align-items: center; gap: var(--s2); padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--line)); border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 78%, transparent); backdrop-filter: blur(10px);
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); white-space: nowrap;
+  translate: calc(var(--px, 0) * -10px) calc(var(--py, 0) * -10px); transition: translate 0.4s ease-out; animation: fx-float 6s ease-in-out infinite;
+}
+.float-tag--a { top: 12%; left: -2%; }
+.float-tag--b { top: 64%; right: -3%; animation-delay: -2s; }
+.float-tag--c { bottom: 2%; left: 6%; animation-delay: -4s; }
+.hero__stats { border: 0; padding: 0; gap: var(--s3); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.hero__stats > div {
+  position: relative; overflow: hidden; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 70%, transparent); backdrop-filter: blur(8px);
+  transition: transform 0.3s var(--fx-ease), border-color 0.3s;
+}
+.hero__stats > div::before { content: ""; position: absolute; left: 0; top: 0; width: 100%; height: 2px; background: linear-gradient(90deg, var(--gold), transparent); }
+.hero__stats > div:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); }
+@media (min-width: 860px) {
+  .hero__inner { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: center; padding-top: var(--s6); padding-bottom: var(--s6); }
+  .hero__stats { grid-column: 1 / -1; }
+  .hero__visual { width: min(100%, 420px); }
+}
+
+/* ---------- Brand ticker ---------- */
+.ticker { overflow: hidden; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 60%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.ticker__track { display: flex; width: max-content; animation: fx-marquee 56s linear infinite; }
+.ticker:hover .ticker__track { animation-play-state: paused; }
+.ticker__track li { display: flex; align-items: center; gap: var(--s5); margin-right: var(--s5); padding: var(--s3) 0; font-family: var(--font-display); font-size: 20px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.ticker__track li::after { content: ""; width: 6px; height: 6px; transform: rotate(45deg); background: var(--gold); opacity: 0.7; }
+
+/* ---------- Cards ---------- */
+.card { --rx: 0deg; --ry: 0deg; transition: transform 0.3s var(--fx-ease), border-color 0.3s, box-shadow 0.4s; }
+.card.fx-wait { opacity: 0; transform: translateY(32px) scale(0.96); }
+.card.fx-rise { animation: fx-rise 0.85s var(--fx-ease) var(--d, 0ms) backwards; }
+.card::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; opacity: 0; transition: opacity 0.35s;
+  background: radial-gradient(340px circle at var(--mx, 50%) var(--my, 30%), color-mix(in srgb, var(--gold) 20%, transparent), transparent 60%);
+}
+.card::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; padding: 1px; opacity: 0; transition: opacity 0.4s;
+  background: conic-gradient(from var(--fx-ang), transparent 0 55%, var(--gold) 80%, var(--gold-hi) 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: fx-ang 3.5s linear infinite paused;
+}
+.card:hover::before, .card:hover::after { opacity: 1; }
+.card:hover::after { animation-play-state: running; }
+.card:hover {
+  transform: perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-6px);
+  box-shadow: var(--shadow), 0 0 46px -14px color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.card__art, .dossier-hero__art { position: relative; isolation: isolate; }
+.card__art::before, .dossier-hero__art::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(62% 36% at 50% 100%, color-mix(in srgb, var(--gold) 24%, transparent), transparent 72%),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--text) 4%, transparent) 0 1px, transparent 1px 4px);
+}
+.card__art::after, .dossier-hero__art::after {
+  content: ""; position: absolute; inset: 10px; z-index: 2; pointer-events: none; opacity: 0.6; transition: inset 0.45s var(--fx-ease), opacity 0.3s;
+  background:
+    linear-gradient(var(--gold), var(--gold)) top left / 16px 1px no-repeat, linear-gradient(var(--gold), var(--gold)) top left / 1px 16px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) top right / 16px 1px no-repeat, linear-gradient(var(--gold), var(--gold)) top right / 1px 16px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) bottom left / 16px 1px no-repeat, linear-gradient(var(--gold), var(--gold)) bottom left / 1px 16px no-repeat,
+    linear-gradient(var(--gold), var(--gold)) bottom right / 16px 1px no-repeat, linear-gradient(var(--gold), var(--gold)) bottom right / 1px 16px no-repeat;
+}
+.card:hover .card__art::after { inset: 18px; opacity: 1; }
+.card__art img, .card__art .watch-art, .dossier-hero__art img, .dossier-hero__art .watch-art { position: relative; z-index: 1; }
+.card__art .watch-art { animation: fx-bob 7s ease-in-out infinite; }
+.card:nth-child(3n) .watch-art { animation-delay: -2.4s; }
+.card:nth-child(3n + 1) .watch-art { animation-delay: -4.6s; }
+.card .ref-tag, .card .kind-tag { z-index: 3; }
+.card__price strong, .price {
+  background: var(--fx-gold-grad); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent; animation: fx-shimmer 7s linear infinite;
+}
+.card__price strong { animation-play-state: paused; }
+.card:hover .card__price strong { animation-play-state: running; }
+.pill--available::before { animation: fx-dot 2s infinite; }
+
+/* ---------- Detail drawer and dialogs ---------- */
+.dossier-hero { overflow: hidden; background: radial-gradient(120% 80% at 0 0, color-mix(in srgb, var(--gold) 10%, transparent), transparent 60%), var(--surface); }
+.section-title { display: flex; align-items: center; gap: var(--s2); }
+.section-title::before { content: ""; width: 18px; height: 1px; background: var(--fx-gold-grad); }
+.specs > div, .matrix li { transition: transform 0.3s var(--fx-ease), border-color 0.3s; }
+.specs > div:hover, .matrix li:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--gold) 50%, var(--line)); }
+.overlay { background: radial-gradient(circle at 50% 25%, color-mix(in srgb, var(--gold) 9%, var(--overlay)), var(--overlay) 70%); }
+.handoff { background: radial-gradient(110% 60% at 100% 0, color-mix(in srgb, var(--gold) 8%, transparent), transparent 60%), var(--surface); }
+
+/* ---------- Buttons ---------- */
+.btn { position: relative; overflow: hidden; }
+.btn--primary { background: var(--fx-btn); box-shadow: 0 10px 26px -12px var(--primary); }
+.btn--primary:hover { filter: none; transform: translateY(-1px); }
+.btn--primary::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-130%); transition: transform 0.8s var(--fx-ease);
+  background: linear-gradient(105deg, transparent 35%, var(--fx-shine) 50%, transparent 65%);
+}
+.btn--primary:hover::after { transform: translateX(130%); }
+#loadingState .empty__title { animation: fx-pulse-text 1.6s ease-in-out infinite; }
+
+/* ---------- Motion ---------- */
+@keyframes fx-rot { to { transform: rotate(360deg); } }
+@keyframes fx-ang { to { --fx-ang: 360deg; } }
+@keyframes fx-breathe { 50% { transform: scale(1.08); opacity: 0.7; } }
+@keyframes fx-glint { 0% { transform: translateX(0); } 38%, 100% { transform: translateX(430px); } }
+@keyframes fx-float { 50% { transform: translateY(-8px); } }
+@keyframes fx-bob { 50% { translate: 0 -7px; } }
+@keyframes fx-rise { from { opacity: 0; transform: translateY(32px) scale(0.96); } }
+@keyframes fx-marquee { to { transform: translateX(-50%); } }
+@keyframes fx-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@keyframes fx-dot { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
+@keyframes fx-pulse-text { 50% { opacity: 0.45; } }
+
+@media (max-width: 520px) {
+  .float-tag { font-size: 9px; padding: 5px 9px; }
+  .float-tag--a { left: 0; }
+  .float-tag--b { right: 0; }
+  .ticker__track li { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.fx-wait { opacity: 1; transform: none; }
+}
