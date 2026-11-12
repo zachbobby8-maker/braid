@@ -247,6 +247,13 @@
       <p class="empty__title" data-i18n="vault.loading">Opening the vault…</p>
     </div>
 
+    <div class="empty" id="bootFail" role="alert" hidden>
+      <p class="empty__title" data-i18n="boot.title">The vault didn’t open.</p>
+      <p class="empty__text" data-i18n="boot.text">Something didn’t load. Reload the page to try again. If it keeps happening, send the technical note below to your site builder.</p>
+      <p class="mono-note"><span data-i18n="boot.detail">Technical note</span>: <span id="bootFailDetail"></span></p>
+      <button type="button" class="btn btn--primary" id="bootReload" data-i18n="boot.reload">Reload the page</button>
+    </div>
+
     <div class="empty" id="emptyVault" hidden>
       <p class="empty__title" data-i18n="vault.emptyTitle">The vault is being restocked.</p>
       <p class="empty__text" data-i18n="vault.emptyText">New pieces are listed here as soon as they arrive. You can also message us to ask what is coming.</p>
@@ -804,6 +811,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
+  <script src="boot-guard.js"></script>
   <script type="module" src="main.js"></script>
 </body>
 </html>
