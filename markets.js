@@ -53,3 +53,4 @@ export function localPrice(priceNgn, country) {
     return `${info.currency} ${amount.toLocaleString('en-US')}`;
   }
 }
+
