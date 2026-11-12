@@ -103,93 +103,7 @@
         </div>
       </div>
       <div class="hero__visual" aria-hidden="true">
-        <svg class="hero-watch" viewBox="0 0 400 400" focusable="false">
-          <defs>
-            <radialGradient id="hwGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0" stop-color="#d4af37" stop-opacity=".42"/>
-              <stop offset=".6" stop-color="#d4af37" stop-opacity=".08"/>
-              <stop offset="1" stop-color="#d4af37" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="hwCase" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#fbeeb0"/><stop offset=".3" stop-color="#d4af37"/><stop offset=".62" stop-color="#7d5f12"/><stop offset="1" stop-color="#e9cf7a"/>
-            </linearGradient>
-            <linearGradient id="hwBezel" x1="1" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#34343a"/><stop offset=".5" stop-color="#0d0d10"/><stop offset="1" stop-color="#2a2a30"/>
-            </linearGradient>
-            <radialGradient id="hwDial" cx="50%" cy="36%" r="72%">
-              <stop offset="0" stop-color="#1f5444"/><stop offset=".62" stop-color="#0b1c16"/><stop offset="1" stop-color="#040807"/>
-            </radialGradient>
-            <linearGradient id="hwStrap" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#0c0c0e"/><stop offset=".5" stop-color="#2a2a30"/><stop offset="1" stop-color="#0c0c0e"/>
-            </linearGradient>
-            <linearGradient id="hwSweep" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".32"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
-            </linearGradient>
-            <clipPath id="hwClip"><circle cx="200" cy="200" r="112"/></clipPath>
-            <filter id="hwLume" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="2.2" result="b"/>
-              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-
-          <circle class="hw-breathe" cx="200" cy="200" r="200" fill="url(#hwGlow)"/>
-          <g class="hw-orbit hw-orbit--a">
-            <circle cx="200" cy="200" r="190" fill="none" stroke="#d4af37" stroke-opacity=".3" stroke-dasharray="1 8"/>
-            <circle cx="200" cy="10" r="3.5" fill="#d4af37"/>
-          </g>
-          <g class="hw-orbit hw-orbit--b">
-            <circle cx="200" cy="200" r="178" fill="none" stroke="#34d399" stroke-opacity=".25" stroke-dasharray="14 10"/>
-            <circle cx="378" cy="200" r="3" fill="#34d399"/>
-          </g>
-
-          <rect x="152" y="22" width="96" height="100" rx="12" fill="url(#hwStrap)" stroke="#3f3f46"/>
-          <rect x="152" y="278" width="96" height="100" rx="12" fill="url(#hwStrap)" stroke="#3f3f46"/>
-          <path d="M163 30V112M237 30V112M163 288V370M237 288V370" fill="none" stroke="#d4af37" stroke-opacity=".4" stroke-dasharray="3 4"/>
-
-          <rect x="332" y="184" width="22" height="32" rx="4" fill="url(#hwCase)" stroke="#7d5f12"/>
-          <path d="M338 187V213M344 187V213M350 187V213" stroke="#3b2d08" stroke-opacity=".5"/>
-          <path d="M140 94 156 56H244L260 94Z" fill="url(#hwCase)" stroke="#7d5f12"/>
-          <path d="M140 306 156 344H244L260 306Z" fill="url(#hwCase)" stroke="#7d5f12"/>
-          <circle cx="200" cy="200" r="140" fill="url(#hwCase)" stroke="#7d5f12" stroke-width="2"/>
-          <circle cx="200" cy="200" r="134" fill="none" stroke="#fff" stroke-opacity=".38"/>
-
-          <circle cx="200" cy="200" r="126" fill="url(#hwBezel)" stroke="#d4af37" stroke-opacity=".6"/>
-          <circle cx="200" cy="200" r="119" fill="none" stroke="#d4af37" stroke-opacity=".75" stroke-width="8" stroke-dasharray="1.4 11.06" stroke-dashoffset=".7" transform="rotate(-90 200 200)"/>
-          <path d="M200 77 194 87H206Z" fill="#34d399" filter="url(#hwLume)"/>
-
-          <circle cx="200" cy="200" r="112" fill="url(#hwDial)"/>
-          <circle cx="200" cy="200" r="56" fill="none" stroke="#fff" stroke-opacity=".05" stroke-width="112" stroke-dasharray="3 6.774"/>
-          <circle cx="200" cy="200" r="108" fill="none" stroke="#d4af37" stroke-opacity=".3"/>
-          <circle cx="200" cy="200" r="103" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="3" stroke-dasharray="1 9.79" stroke-dashoffset=".5" transform="rotate(-90 200 200)"/>
-          <g filter="url(#hwLume)" transform="rotate(-90 200 200)">
-            <circle cx="200" cy="200" r="90" fill="none" stroke="#d9ffe9" stroke-width="12" stroke-dasharray="4.4 42.72" stroke-dashoffset="2.2"/>
-            <circle cx="200" cy="200" r="90" fill="none" stroke="#d9ffe9" stroke-width="18" stroke-dasharray="7 134.37" stroke-dashoffset="3.5"/>
-          </g>
-          <text x="200" y="152" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="24" font-weight="600" letter-spacing="6" fill="#e9cf7a">BRAID</text>
-          <text x="200" y="168" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" letter-spacing="3.5" fill="#a1a1aa">WATCHES</text>
-          <rect x="250" y="190" width="26" height="20" rx="2" fill="#f4f4f5" stroke="#d4af37"/>
-          <text id="hwDate" x="263" y="205" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#18181b">12</text>
-
-          <path d="M104 160C112 120 150 92 196 90C150 110 122 134 104 160Z" fill="#fff" fill-opacity=".09"/>
-
-          <g id="hwHour">
-            <path d="M200 214 193 205 196 142 200 126 204 142 207 205Z" fill="#e9cf7a" stroke="#7d5f12" stroke-width=".8"/>
-            <path d="M200 192V148" stroke="#d9ffe9" stroke-width="2" stroke-linecap="round"/>
-          </g>
-          <g id="hwMin">
-            <path d="M200 220 194.5 208 197 120 200 96 203 120 205.5 208Z" fill="#e9cf7a" stroke="#7d5f12" stroke-width=".8"/>
-            <path d="M200 200V120" stroke="#d9ffe9" stroke-width="2" stroke-linecap="round"/>
-          </g>
-          <g id="hwSec">
-            <line x1="200" y1="238" x2="200" y2="92" stroke="#34d399" stroke-width="1.6" stroke-linecap="round"/>
-            <circle cx="200" cy="228" r="5" fill="none" stroke="#34d399" stroke-width="1.6"/>
-            <circle cx="200" cy="140" r="3.2" fill="#d9ffe9"/>
-          </g>
-          <circle cx="200" cy="200" r="7" fill="#d4af37" stroke="#18181b"/>
-          <circle cx="200" cy="200" r="2.5" fill="#18181b"/>
-
-          <g clip-path="url(#hwClip)"><g class="hw-glint"><rect x="60" y="80" width="46" height="240" fill="url(#hwSweep)" transform="skewX(-22)"/></g></g>
-        </svg>
+        <svg class="hero-watch" viewBox="0 0 400 400" focusable="false"><defs><radialGradient id="hwGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#d4af37" stop-opacity=".42"/><stop offset=".65" stop-color="#d4af37" stop-opacity=".08"/><stop offset="1" stop-color="#d4af37" stop-opacity="0"/></radialGradient><linearGradient id="hwCase" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbeeb0"/><stop offset=".35" stop-color="#d4af37"/><stop offset=".7" stop-color="#7d5f12"/><stop offset="1" stop-color="#e9cf7a"/></linearGradient><radialGradient id="hwDial" cx="50%" cy="36%" r="72%"><stop offset="0" stop-color="#1f5444"/><stop offset=".62" stop-color="#0b1c16"/><stop offset="1" stop-color="#040807"/></radialGradient></defs><circle class="hw-breathe" cx="200" cy="200" r="200" fill="url(#hwGlow)"/><g class="hw-orbit hw-orbit--a"><circle cx="200" cy="200" r="190" fill="none" stroke="#d4af37" stroke-opacity=".3" stroke-dasharray="1 8"/><circle cx="200" cy="10" r="3.5" fill="#d4af37"/></g><g class="hw-orbit hw-orbit--b"><circle cx="200" cy="200" r="178" fill="none" stroke="#34d399" stroke-opacity=".25" stroke-dasharray="14 10"/><circle cx="378" cy="200" r="3" fill="#34d399"/></g><rect x="152" y="22" width="96" height="100" rx="12" fill="#16161b" stroke="#3f3f46"/><rect x="152" y="278" width="96" height="100" rx="12" fill="#16161b" stroke="#3f3f46"/><path d="M140 94 156 56H244L260 94ZM140 306 156 344H244L260 306Z" fill="url(#hwCase)" stroke="#7d5f12"/><circle cx="200" cy="200" r="140" fill="url(#hwCase)" stroke="#7d5f12" stroke-width="2"/><circle cx="200" cy="200" r="126" fill="#17171b" stroke="#d4af37" stroke-opacity=".6"/><circle cx="200" cy="200" r="112" fill="url(#hwDial)"/><circle cx="200" cy="200" r="103" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-dasharray="1 9.79"/><text x="200" y="152" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="24" font-weight="600" letter-spacing="6" fill="#e9cf7a">BRAID</text><text x="200" y="168" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7.5" letter-spacing="3.5" fill="#a1a1aa">WATCHES</text><rect x="250" y="190" width="26" height="20" rx="2" fill="#f4f4f5" stroke="#d4af37"/><text id="hwDate" x="263" y="205" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" font-weight="700" fill="#18181b">12</text><g id="hwHour"><path d="M200 214 193 205 196 142 200 126 204 142 207 205Z" fill="#e9cf7a"/><path d="M200 192V148" stroke="#d9ffe9" stroke-width="2" stroke-linecap="round"/></g><g id="hwMin"><path d="M200 220 194.5 208 197 120 200 96 203 120 205.5 208Z" fill="#e9cf7a"/><path d="M200 200V120" stroke="#d9ffe9" stroke-width="2" stroke-linecap="round"/></g><g id="hwSec"><line x1="200" y1="238" x2="200" y2="92" stroke="#34d399" stroke-width="1.6" stroke-linecap="round"/><circle cx="200" cy="228" r="5" fill="none" stroke="#34d399" stroke-width="1.6"/></g><circle cx="200" cy="200" r="7" fill="#d4af37" stroke="#18181b"/><circle cx="200" cy="200" r="2.5" fill="#18181b"/></svg>
         <span class="float-tag float-tag--a"><span class="pulse"></span><span data-i18n="fx.tagAuth">Authenticated</span></span>
         <span class="float-tag float-tag--b"><span class="pulse"></span><span data-i18n="fx.tagCourier">Insured delivery</span></span>
         <span class="float-tag float-tag--c"><span class="pulse"></span><span data-i18n="fx.tagLive">Live availability</span></span>
@@ -266,6 +180,19 @@
       <button type="button" class="btn btn--outline" id="resetFilters" data-i18n="empty.reset">Reset filters</button>
     </div>
   </main>
+
+  <section class="brand-board" aria-labelledby="brandBoardTitle">
+    <div class="wrap brand-board__inner">
+      <div class="brand-board__head">
+        <div>
+          <p class="eyebrow" data-i18n="brands.eyebrow">Working with watch houses</p>
+          <h2 id="brandBoardTitle" data-i18n="brands.title">Names that shape the vault</h2>
+        </div>
+        <p class="brand-board__text" data-i18n="brands.text">From independent icons to legendary maisons, we source and trade pieces with a story.</p>
+      </div>
+      <ul class="brand-board__list" id="brandBoardList" data-i18n-aria-label="brands.listLabel" aria-label="Watch houses"></ul>
+    </div>
+  </section>
 
   <section class="partner" aria-labelledby="partnerTitle">
     <div class="wrap partner__inner">
@@ -632,60 +559,14 @@
             <p class="mono-note" id="editPhotoStatus" role="status"></p>
           </fieldset>
           <fieldset class="field look" id="lookSet">
-            <legend data-i18n="look.title">Watch drawing</legend>
-            <p class="mono-note" data-i18n="look.help">This drawing shows on the card until you add a photo. Pick a starting style, then adjust the shape and colours.</p>
-            <div class="look__presets" id="lookPresets" role="group" data-i18n-aria-label="look.presets" aria-label="Starting styles"></div>
-            <div class="look__body">
-              <div class="look__preview" id="lookPreview" role="img" data-i18n-aria-label="look.previewAlt" aria-label="Drawing preview"></div>
-              <div class="look__fields">
-                <label class="field">
-                  <span data-i18n="look.shapeLabel">Case shape</span>
-                  <select id="lookShape">
-                    <option value="round" data-i18n="look.shape.round">Round</option>
-                    <option value="cushion" data-i18n="look.shape.cushion">Cushion</option>
-                    <option value="tank" data-i18n="look.shape.tank">Tank (rectangular)</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span data-i18n="look.strapLabel">Strap</span>
-                  <select id="lookStrap">
-                    <option value="leather" data-i18n="look.strap.leather">Leather</option>
-                    <option value="oyster" data-i18n="look.strap.oyster">Oyster bracelet</option>
-                    <option value="jubilee" data-i18n="look.strap.jubilee">Jubilee bracelet</option>
-                  </select>
-                </label>
-                <label class="field" id="lookPatternField">
-                  <span data-i18n="look.patternLabel">Dial style</span>
-                  <select id="lookPattern">
-                    <option value="plain" data-i18n="look.pattern.plain">Plain</option>
-                    <option value="sunburst" data-i18n="look.pattern.sunburst">Sunburst</option>
-                    <option value="linen" data-i18n="look.pattern.linen">Linen texture</option>
-                    <option value="crosshair" data-i18n="look.pattern.crosshair">Crosshair</option>
-                    <option value="explorer" data-i18n="look.pattern.explorer">3-6-9 numerals</option>
-                    <option value="diver" data-i18n="look.pattern.diver">Diver dots</option>
-                    <option value="chrono-single" data-i18n="look.pattern.chrono-single">Chronograph, 1 dial</option>
-                    <option value="chrono-tri" data-i18n="look.pattern.chrono-tri">Chronograph, 3 dials</option>
-                  </select>
-                </label>
-                <label class="field" id="lookBezelField">
-                  <span data-i18n="look.bezelLabel">Bezel</span>
-                  <select id="lookBezel">
-                    <option value="smooth-steel" data-i18n="look.bezel.smooth-steel">Smooth, case colour</option>
-                    <option value="smooth-gold" data-i18n="look.bezel.smooth-gold">Smooth gold</option>
-                    <option value="fluted" data-i18n="look.bezel.fluted">Fluted</option>
-                    <option value="pepsi" data-i18n="look.bezel.pepsi">Red &amp; blue</option>
-                    <option value="diver-black" data-i18n="look.bezel.diver-black">Black diver</option>
-                    <option value="tacho" data-i18n="look.bezel.tacho">Tachymeter</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-            <div class="look__colors">
-              <label class="swatch"><input type="color" id="lookDial"><span data-i18n="look.dial">Dial</span></label>
-              <label class="swatch"><input type="color" id="lookCase"><span data-i18n="look.case">Case</span></label>
-              <label class="swatch"><input type="color" id="lookStrapColor"><span data-i18n="look.strapColor">Strap</span></label>
-              <label class="swatch" id="lookMarksField"><input type="color" id="lookMarks"><span data-i18n="look.marks">Markers</span></label>
-            </div>
+            <legend data-i18n="look.title">Watch drawing</legend><p class="mono-note" data-i18n="look.help">This drawing shows on the card until you add a photo. Pick a starting style, then adjust the shape and colours.</p><div class="look__presets" id="lookPresets" role="group" data-i18n-aria-label="look.presets" aria-label="Starting styles"></div>
+            <div class="look__body"><div class="look__preview" id="lookPreview" role="img" data-i18n-aria-label="look.previewAlt" aria-label="Drawing preview"></div><div class="look__fields">
+              <label class="field"><span data-i18n="look.shapeLabel">Case shape</span><select id="lookShape"><option value="round" data-i18n="look.shape.round">Round</option><option value="cushion" data-i18n="look.shape.cushion">Cushion</option><option value="tank" data-i18n="look.shape.tank">Tank (rectangular)</option></select></label>
+              <label class="field"><span data-i18n="look.strapLabel">Strap</span><select id="lookStrap"><option value="leather" data-i18n="look.strap.leather">Leather</option><option value="oyster" data-i18n="look.strap.oyster">Oyster bracelet</option><option value="jubilee" data-i18n="look.strap.jubilee">Jubilee bracelet</option></select></label>
+              <label class="field" id="lookPatternField"><span data-i18n="look.patternLabel">Dial style</span><select id="lookPattern"><option value="plain" data-i18n="look.pattern.plain">Plain</option><option value="sunburst" data-i18n="look.pattern.sunburst">Sunburst</option><option value="linen" data-i18n="look.pattern.linen">Linen texture</option><option value="crosshair" data-i18n="look.pattern.crosshair">Crosshair</option><option value="explorer" data-i18n="look.pattern.explorer">3-6-9 numerals</option><option value="diver" data-i18n="look.pattern.diver">Diver dots</option><option value="chrono-single" data-i18n="look.pattern.chrono-single">Chronograph, 1 dial</option><option value="chrono-tri" data-i18n="look.pattern.chrono-tri">Chronograph, 3 dials</option></select></label>
+              <label class="field" id="lookBezelField"><span data-i18n="look.bezelLabel">Bezel</span><select id="lookBezel"><option value="smooth-steel" data-i18n="look.bezel.smooth-steel">Smooth, case colour</option><option value="smooth-gold" data-i18n="look.bezel.smooth-gold">Smooth gold</option><option value="fluted" data-i18n="look.bezel.fluted">Fluted</option><option value="pepsi" data-i18n="look.bezel.pepsi">Red &amp; blue</option><option value="diver-black" data-i18n="look.bezel.diver-black">Black diver</option><option value="tacho" data-i18n="look.bezel.tacho">Tachymeter</option></select></label>
+            </div></div>
+            <div class="look__colors"><label class="swatch"><input type="color" id="lookDial"><span data-i18n="look.dial">Dial</span></label><label class="swatch"><input type="color" id="lookCase"><span data-i18n="look.case">Case</span></label><label class="swatch"><input type="color" id="lookStrapColor"><span data-i18n="look.strapColor">Strap</span></label><label class="swatch" id="lookMarksField"><input type="color" id="lookMarks"><span data-i18n="look.marks">Markers</span></label></div>
             <label class="check" id="lookCyclopsField"><input type="checkbox" id="lookCyclops"><span data-i18n="look.cyclops">Date magnifier (cyclops)</span></label>
           </fieldset>
           <label class="field">
