@@ -161,3 +161,4 @@ export const WATCHES = [
     visual: { shape: 'round', dialColor: '#F4F4F2', dialPattern: 'chrono-tri', bezelType: 'smooth-steel', caseColor: '#D4D4D8', strapType: 'leather', strapColor: '#1D4ED8', indexColor: '#DC2626', hasCyclops: false },
   },
 ];
+
