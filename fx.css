@@ -212,3 +212,4 @@
 @media (prefers-reduced-motion: reduce) {
   .card.fx-wait { opacity: 1; transform: none; }
 }
+
