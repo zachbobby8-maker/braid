@@ -62,3 +62,4 @@ export function initPartner({ onClose } = {}) {
     isOpen: overlay.isOpen,
   };
 }
+
