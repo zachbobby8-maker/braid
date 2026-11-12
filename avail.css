@@ -53,3 +53,4 @@
   .avail__opt, .avail__opt:hover { transition: none; transform: none; }
   .avail__opt:has(input:checked) .avail__dot { animation: none; }
 }
+
