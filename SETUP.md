@@ -65,6 +65,9 @@ AI photo generation only works inside the Miniapps preview, and the preview keep
 3. Open your live site, sign in as admin, tap **Paste photo links**, paste, then tap **Apply photos**.
 
 ## Good to know
+- If the page says "The vault didn't open", tap **Reload the page**. If it shows again, read the "Technical note" line under it. If it says "These files are missing from your website", upload exactly those files (keep them in the same folder as `index.html`) and redeploy. The site is made of many small files, so a partial upload leaves the page stuck on "Opening the vault…".
+- Quick check: open `your-site.vercel.app/boot.js` in a browser. If you see code, the file is there. If you see a "not found" page, it was not uploaded.
+- Files that must sit next to `index.html`: `main.js`, `boot.js`, `boot-guard.js`, `config.js`, `dom.js`, `backend.js`, `merchant.js`, `markets.js`, `watches.js`, `watch-art.js`, `checkout.js`, `sell.js`, `partner.js`, `inbox.js`, `fx.js`, `editor.js`, `editor-look.js`, `admin-auth.js`, `admin-photos.js`, `ai-photos.js`, and the five style files `styles.css`, `checkout.css`, `fx.css`, `avail.css`, `inbox.css`. Also the `locales` folder with `en.json`, and the `api` folder with `_lib.js`, `catalog.js`, `config.js`, `inbox.js`, `login.js`, `photo.js`.
 - The passcode is checked on the server. It is never inside the page code.
 - Five wrong tries in a row make the login wait before allowing more.
 - If the yellow bar says "Preview mode", the database is not connected yet. Re-check step 1 and 3.
