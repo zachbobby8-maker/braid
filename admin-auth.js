@@ -140,3 +140,4 @@ export function initAdminAuth({ onChange }) {
 
   return { open, signOut, restore, isSignedIn: () => signedIn };
 }
+
