@@ -8,19 +8,28 @@ import { initAdminPhotos } from './admin-photos.js';
 import { initCheckout } from './checkout.js';
 import { initInbox, sendCopy } from './inbox.js';
 import { initFx } from './fx.js';
+import { initAtelier } from './atelier-upgrade.js';
 import { guessCountry } from './markets.js';
 import { withTimeout, safeInit, on, markReady, markFailed } from './boot.js';
 
 const CONDITIONS = ['box', 'unpolished', 'serviced', 'originalDial'];
 const STATUS_ORDER = ['available', 'hold', 'sold'];
-const KEYS = { theme: 'bw.theme', buyer: 'bw.buyer' };
+const KEYS = { theme: 'bw.theme', buyer: 'bw.buyer', currency: 'bw.currency' };
 const CLOCK_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
 
 const state = {
   cat: 'all', kind: 'all', query: '', availableOnly: false, admin: false, theme: 'vault',
   watches: [], loaded: false, source: 'sample', buyer: {}, active: null, dossier: '', busy: false, bulk: false, stopBulk: false, confirmClear: false,
-  loadError: false,
+  loadError: false, currency: 'NGN',
 };
+
+function displayPrice(n) {
+  if (state.currency === 'USD') {
+    const usd = Math.round((Number(n) || 0) / Math.max(1, Number(CONFIG.usdToNgn) || 1550));
+    return `$${usd.toLocaleString('en-US')}`;
+  }
+  return fmtPrice(n);
+}
 
 /* ---------- small handoff helpers kept here so a partial upload cannot stop the vault ---------- */
 export function fmtDateTime(input) {
@@ -163,8 +172,9 @@ function cardHTML(w) {
         <ul class="mini-matrix">${tags}</ul>
       </div>
       <div class="card__foot">
-        <div class="card__price"><small>${esc(t('card.valuation'))}</small><strong>${esc(fmtPrice(w.priceNgn))}</strong></div>
+        <div class="card__price"><small>${esc(t('card.valuation'))}</small><strong>${esc(displayPrice(w.priceNgn))}</strong></div>
         <span class="card__cta">${esc(t('card.inspect'))} <span aria-hidden="true">&rarr;</span></span>
+        <button type="button" class="atelier-add" data-vault-add="${esc(w.id)}" aria-label="${esc(t('atelier.addLabel', { name: `${w.brand} ${w.model}` }))}"><span aria-hidden="true">+</span><span>${esc(t('atelier.add'))}</span></button>
       </div>
     </article>`;
 }
@@ -186,6 +196,7 @@ function render() {
   $('resultCount').textContent = t('results.count', { shown: list.length, total: all.length });
   $('availableCount').textContent = t('results.available', { n: all.filter((w) => w.status === 'available').length });
   photos.syncBulkLabel();
+  atelier.refresh();
   syncClearSamples();
 }
 
@@ -241,7 +252,7 @@ function fillDrawer(w) {
   $('drawerTier').textContent = `${t(`tier.${w.tier}`)} · ${t(`kind.${w.kind}`)}`;
   $('drawerYear').textContent = t('drawer.circa', { year: w.year });
   $('drawerTitle').textContent = `${w.brand} ${w.model}`;
-  $('drawerPrice').textContent = fmtPrice(w.priceNgn);
+  $('drawerPrice').textContent = displayPrice(w.priceNgn);
   $('drawerListed').textContent = t('card.listed', { date: fmtDateTime(w.listedAt) });
   $('specRef').textContent = w.ref;
   $('specYear').textContent = w.year;
@@ -363,6 +374,15 @@ const photos = safeInit('photos', () => initAdminPhotos({
   render,
   refreshActive,
   onAuthLost: () => { toast(t('toast.sessionEnded')); auth.signOut(); },
+}));
+
+const atelier = safeInit('atelier upgrade', () => initAtelier({
+  getWatches: () => state.watches,
+  findWatch,
+  openWatch: openDrawer,
+  formatPrice: displayPrice,
+  getCurrency: () => state.currency,
+  onCurrencyChange: (currency) => { state.currency = currency === 'USD' ? 'USD' : 'NGN'; save(KEYS.currency, state.currency); render(); },
 }));
 
 /* ---------- add, edit and remove watches (admin) ---------- */
@@ -548,6 +568,7 @@ function initPartner({ onClose } = {}) {
 const BRAND_KEYS = [
   'rolex', 'omega', 'cartier', 'patek', 'audemars', 'vacheron', 'jaeger', 'tudor', 'grandSeiko',
   'zenith', 'iwc', 'breguet', 'breitling', 'tagHeuer', 'longines', 'universalGeneve', 'kingSeiko', 'moser',
+  'lange', 'richardMille', 'fpJourne', 'mbf', 'urwerk', 'czapek', 'laurentFerrier', 'doxa', 'baltic', 'oris', 'nivada',
 ];
 
 function initBrandBoard() {
@@ -661,13 +682,15 @@ async function boot() {
     markReady();
   }
 
-  const [theme, buyer, catalog] = await Promise.all([
+  const [theme, buyer, currency, catalog] = await Promise.all([
     withTimeout(load(KEYS.theme, 'vault'), 4000, 'vault'),
     withTimeout(load(KEYS.buyer, {}), 4000, {}),
+    withTimeout(load(KEYS.currency, 'NGN'), 4000, 'NGN'),
     withTimeout(backend.loadCatalog(), 20000, { list: [], source: 'error' }),
   ]);
   state.buyer = buyer && typeof buyer === 'object' ? buyer : {};
   state.theme = theme === 'archive' ? 'archive' : 'vault';
+  state.currency = currency === 'USD' ? 'USD' : 'NGN';
   if (catalog.source !== 'error' || !state.watches.length) state.watches = catalog.list;
   state.source = catalog.source;
   state.loadError = catalog.source === 'error' && !state.watches.length;
