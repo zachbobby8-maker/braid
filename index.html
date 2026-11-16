@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="checkout.css">
   <link rel="stylesheet" href="fx.css">
+  <link rel="stylesheet" href="atelier.css">
   <link rel="stylesheet" href="avail.css">
   <link rel="stylesheet" href="inbox.css">
 </head>
@@ -28,6 +29,18 @@
     <div class="wrap strip__inner">
       <span class="strip__live"><span class="pulse" aria-hidden="true"></span><span data-i18n="strip.online">Vault online</span></span>
       <span class="strip__desk" data-i18n="strip.desk">Lagos private desk · Nigeria · Ghana · Kenya · South Africa</span>
+      <div class="atelier-strip__tools" data-i18n-aria-label="atelier.currencyLabel" aria-label="Atelier controls">
+        <span class="atelier-strip__signal" data-i18n="atelier.telemetry">BRAIDSERIES / TOPOLOGICAL HOROLOGY</span>
+        <div class="currency-toggle" role="group" data-i18n-aria-label="atelier.currencyLabel" aria-label="Display currency">
+          <button type="button" data-currency="USD" aria-pressed="false">USD</button>
+          <button type="button" data-currency="NGN" aria-pressed="true">NGN</button>
+        </div>
+        <button type="button" class="atelier-vault-trigger" id="atelierVaultBtn" aria-controls="atelierVaultDrawer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>
+          <span data-i18n="atelier.vault">Collector vault</span>
+          <span class="atelier-vault-trigger__count" id="atelierVaultCount" aria-live="polite">0</span>
+        </button>
+      </div>
       <time id="liveClock" class="strip__clock"></time>
     </div>
   </div>
@@ -118,9 +131,45 @@
 
   <div class="ticker" aria-hidden="true">
     <ul class="ticker__track" id="tickerTrack">
-      <li>Rolex</li><li>Omega</li><li>Cartier</li><li>Patek Philippe</li><li>Tudor</li><li>Heuer</li><li>Seiko</li><li>Longines</li><li>Universal Genève</li><li>King Seiko</li><li>Ikepod</li><li>Alain Silberstein</li>
+      <li>Rolex</li><li>Omega</li><li>Cartier</li><li>Patek Philippe</li><li>A. Lange &amp; Söhne</li><li>F.P. Journe</li><li>MB&amp;F</li><li>Urwerk</li><li>Grand Seiko</li><li>Universal Genève</li><li>King Seiko</li><li>Czapek</li><li>Laurent Ferrier</li><li>Doxa</li><li>Baltic</li><li>Oris</li><li>Nivada Grenchen</li>
     </ul>
   </div>
+
+  <section class="atelier-feature" aria-labelledby="atelierFeatureTitleHeading">
+    <div class="wrap atelier-feature__inner">
+      <div class="atelier-feature__copy">
+        <p class="eyebrow" data-i18n="atelier.eyebrow">Braidseries atelier / curated horology</p>
+        <h2 id="atelierFeatureTitleHeading" data-i18n="atelier.title">Topological horology, grounded in real pieces.</h2>
+        <p data-i18n="atelier.text">A collector’s lens for the live Braid Watches vault: compare the pieces, hold a shortlist, then send a direct merchant request when you are ready.</p>
+        <div class="atelier-feature__actions">
+          <button type="button" class="btn btn--primary btn--sm" id="atelierBrowse" data-i18n="atelier.browse">Browse the live vault</button>
+          <button type="button" class="btn btn--outline btn--sm" id="atelierOpenVault" data-i18n="atelier.vaultOpen">Open collector vault</button>
+        </div>
+        <dl class="atelier-feature__stats">
+          <div><dt data-i18n="atelier.pillar1">34–39 mm</dt><dd data-i18n="atelier.pillar1Text">Classical proportions</dd></div>
+          <div><dt data-i18n="atelier.pillar2">Direct merchant</dt><dd data-i18n="atelier.pillar2Text">No on-site payment</dd></div>
+          <div><dt data-i18n="atelier.pillar3">4 markets</dt><dd data-i18n="atelier.pillar3Text">Nigeria · Ghana · Kenya · South Africa</dd></div>
+        </dl>
+      </div>
+      <div class="atelier-caliber">
+        <div class="atelier-caliber__top">
+          <span data-i18n="atelier.featureLabel">Featured from the live vault</span>
+          <span class="atelier-caliber__badge" data-i18n="atelier.live">Live availability</span>
+        </div>
+        <button type="button" class="atelier-caliber__art" id="atelierFeatureArt" data-i18n-aria-label="atelier.featureOpen" aria-label="Inspect featured piece"></button>
+        <div class="atelier-caliber__foot">
+          <div>
+            <h3 id="atelierFeatureTitle"></h3>
+            <p id="atelierFeatureMeta"></p>
+          </div>
+          <div class="atelier-feature__actions">
+            <button type="button" class="btn btn--outline btn--sm" id="atelierFeatureOpen" data-i18n="atelier.featureOpen">Inspect featured piece</button>
+            <button type="button" class="btn btn--primary btn--sm" id="atelierFeatureAdd" data-i18n="atelier.featureAdd">Add featured piece</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <main class="wrap main">
     <div class="admin-banner" id="adminBanner" hidden>
@@ -687,6 +736,31 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="atelier-overlay" id="atelierVaultBackdrop" hidden>
+    <aside class="atelier-drawer" id="atelierVaultDrawer" role="dialog" aria-modal="true" aria-labelledby="atelierVaultTitle" tabindex="-1">
+      <div class="atelier-drawer__head">
+        <div>
+          <p class="eyebrow" data-i18n="atelier.telemetry">BRAIDSERIES / TOPOLOGICAL HOROLOGY</p>
+          <h2 id="atelierVaultTitle" data-i18n="atelier.vaultTitle">Collector vault</h2>
+          <p data-i18n="atelier.vaultIntro">Hold pieces here while you compare them. Orders are still confirmed by our merchant.</p>
+        </div>
+        <button type="button" class="atelier-drawer__close" id="atelierVaultClose" data-i18n-aria-label="atelier.vaultClose" aria-label="Close collector vault">&times;</button>
+      </div>
+      <div class="atelier-drawer__body">
+        <div class="atelier-vault-empty" id="atelierVaultEmpty">
+          <h3 data-i18n="atelier.emptyTitle">Your collector vault is empty</h3>
+          <p data-i18n="atelier.emptyText">Add pieces from the live catalogue and keep a considered shortlist before you message the merchant.</p>
+        </div>
+        <div class="atelier-vault-list" id="atelierVaultList" aria-live="polite"></div>
+      </div>
+      <div class="atelier-drawer__foot">
+        <div class="atelier-drawer__total"><span data-i18n="atelier.total">Vault reference total</span><strong id="atelierVaultTotal">₦0</strong></div>
+        <p class="atelier-drawer__note" data-i18n="atelier.currencyNote">USD is an approximate display using the current reference rate.</p>
+        <button type="button" class="btn btn--primary btn--block" id="atelierVaultRequest" data-i18n="atelier.request">Start merchant request</button>
+      </div>
+    </aside>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
